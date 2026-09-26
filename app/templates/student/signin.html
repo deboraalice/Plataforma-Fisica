@@ -1,0 +1,69 @@
+{% extends "base.html" %}
+
+{% block title %}Cadastro - FisicaFlow{% endblock %}
+
+{% block content %}
+<div class="cadastro-container">
+
+  <section class="callout-suap">
+    <h2>Você é aluno do IF?</h2>
+    <p>
+      Se você estuda no IFRN, não preencha o formulário abaixo — entre
+      direto com sua conta do SUAP. Assim sua turma e seu professor ficam
+      vinculados automaticamente, sem precisar digitar nada disso.
+    </p>
+    <a href="{{ url_for('login_suap') }}" class="btn btn-suap">
+      Entrar com SUAP
+    </a>
+  </section>
+
+  <div class="login-divisor">ou</div>
+
+  <section class="cadastro-tradicional">
+    <h2>Cadastro geral</h2>
+    <p>
+      Para quem quer estudar o conteúdo sem vínculo com o IF. Este cadastro
+      não gera turma nem professor associado.
+    </p>
+
+    <form method="POST" action="{{ url_for('cadastrar_student') }}">
+      {{ formulario.hidden_tag() }}
+
+      <div class="campo">
+        {{ formulario.name.label }}
+        {{ formulario.name(class_="form-control") }}
+        {% for erro in formulario.name.errors %}
+          <span class="erro">{{ erro }}</span>
+        {% endfor %}
+      </div>
+
+      <div class="campo">
+        {{ formulario.email.label }}
+        {{ formulario.email(class_="form-control") }}
+        {% for erro in formulario.email.errors %}
+          <span class="erro">{{ erro }}</span>
+        {% endfor %}
+      </div>
+
+      <div class="campo">
+        {{ formulario.password.label }}
+        {{ formulario.password(class_="form-control") }}
+        {% for erro in formulario.password.errors %}
+          <span class="erro">{{ erro }}</span>
+        {% endfor %}
+      </div>
+
+      <div class="campo">
+        {{ formulario.confirmar_password.label }}
+        {{ formulario.confirmar_password(class_="form-control") }}
+        {% for erro in formulario.confirmar_password.errors %}
+          <span class="erro">{{ erro }}</span>
+        {% endfor %}
+      </div>
+
+      {{ formulario.submit(class_="btn btn-primary") }}
+    </form>
+  </section>
+
+</div>
+{% endblock %}
