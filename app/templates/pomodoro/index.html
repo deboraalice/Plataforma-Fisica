@@ -1,0 +1,83 @@
+{% extends "layouts/app_base.html" %}
+{% from "components/macros.html" import icon %}
+
+{% block title %}Pomodoro - FísicaFlow{% endblock %}
+{% block page_title %}Pomodoro{% endblock %}
+
+{% block content %}
+<div class="pomo animate-fadeIn" data-pomodoro-page
+     data-focus-min="{{ limites.MIN_MINUTOS }}" data-focus-max="{{ limites.MAX_MINUTOS }}">
+
+  {# Alternar entre Foco e Descanso + configurações #}
+  <div class="pomo-tabs">
+    <button type="button" class="pomo-tab is-active" data-mode-tab="foco" aria-pressed="true">🎯 Foco</button>
+    <button type="button" class="pomo-tab" data-mode-tab="descanso" aria-pressed="false">☕ Descanso</button>
+    <button type="button" class="pomo-settings-btn" data-open-settings aria-label="Configurar durações">{{ icon('settings', 18) }}</button>
+  </div>
+
+  {# Cronômetro circular #}
+  <div class="pomo-timer" role="timer" aria-label="Cronômetro do Pomodoro">
+    <svg class="pomo-ring" width="260" height="260" viewBox="0 0 260 260" aria-hidden="true">
+      <circle class="pomo-ring-track" cx="130" cy="130" r="110" fill="none" stroke-width="12"/>
+      <circle class="pomo-ring-bar" data-ring cx="130" cy="130" r="110" fill="none" stroke-width="12"
+              stroke-linecap="round" transform="rotate(-90 130 130)"/>
+    </svg>
+    <div class="pomo-time">
+      <div class="pomo-digits" data-digits>25:00</div>
+      <div class="pomo-mode-label" data-mode-label>Foco</div>
+    </div>
+  </div>
+
+  <div class="pomo-controls">
+    <button type="button" class="pomo-btn pomo-btn-reset" data-reset aria-label="Reiniciar">{{ icon('rotate-ccw', 20) }}</button>
+    <button type="button" class="pomo-btn pomo-btn-play" data-toggle aria-label="Iniciar">
+      <span class="when-paused">{{ icon('play', 28) }}</span>
+      <span class="when-running">{{ icon('pause', 28) }}</span>
+    </button>
+  </div>
+
+  <div class="pomo-stats">
+    <div class="card pomo-stat">
+      <div class="pomo-stat-number" data-stat="sessions">{{ hoje.sessions }}</div>
+      <div class="pomo-stat-label">Sessões hoje</div>
+    </div>
+    <div class="pomo-stat pomo-stat-points">
+      <div class="pomo-stat-number">{{ icon('zap', 20) }}<span data-stat="points">{{ hoje.points }}</span></div>
+      <div class="pomo-stat-label">Pontos ganhos hoje</div>
+    </div>
+  </div>
+
+  <div data-history>{% include "pomodoro/_history.html" %}</div>
+
+  {# ---- Modal: configurações ---- #}
+  <dialog class="modal modal-sm" data-modal="settings" aria-labelledby="pomo-settings-title">
+    <form class="modal-content" data-settings-form>
+      <div class="modal-header">
+        <h3 id="pomo-settings-title">Configurações</h3>
+        <button type="button" class="icon-btn" data-close aria-label="Fechar">{{ icon('x', 18) }}</button>
+      </div>
+
+      <div class="form">
+        <div class="field">
+          <label class="field-label" for="pomo-focus-range">Duração do Foco (min): <strong class="font-mono pomo-range-value" data-focus-value>25</strong></label>
+          <input class="range" type="range" id="pomo-focus-range" name="focus" min="{{ limites.MIN_MINUTOS }}" max="{{ limites.MAX_MINUTOS }}" value="25">
+        </div>
+        <div class="field">
+          <label class="field-label" for="pomo-break-range">Duração do Descanso (min): <strong class="font-mono pomo-range-value" data-break-value>5</strong></label>
+          <input class="range" type="range" id="pomo-break-range" name="pause" min="1" max="30" value="5">
+        </div>
+        <p class="pomo-hint">Cada minuto de foco concluído vale {{ limites.PONTOS_POR_MINUTO }} pontos.</p>
+      </div>
+
+      <div class="modal-footer">
+        <button type="submit" class="btn btn-primary">Aplicar</button>
+      </div>
+    </form>
+  </dialog>
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/pomodoro.js') }}"></script>
+{% endblock %}

@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+{% from "components/macros.html" import flash_alerts %}
+
+{% block body %}
+<div class="auth">
+
+  {# Lado esquerdo: ilustração (só aparece em telas largas) #}
+  <aside class="auth-hero" aria-hidden="true">
+    <div class="auth-hero-inner">
+      <div class="auth-hero-title">FísicaFlow</div>
+      <p class="auth-hero-sub">Aprenda Física de forma inteligente e interativa</p>
+
+      <div class="auth-hero-art">
+        <svg viewBox="0 0 260 260" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <ellipse cx="130" cy="130" rx="110" ry="40" stroke="rgba(255,255,255,0.3)" stroke-width="1.5"/>
+          <ellipse cx="130" cy="130" rx="80" ry="80" stroke="rgba(255,255,255,0.2)" stroke-width="1.5"/>
+          <ellipse cx="130" cy="130" rx="50" ry="100" stroke="rgba(255,255,255,0.25)" stroke-width="1.5" transform="rotate(60 130 130)"/>
+          <circle cx="130" cy="130" r="14" fill="rgba(255,255,255,0.9)"/>
+          <circle cx="130" cy="130" r="8" fill="#4F46E5"/>
+          <circle cx="240" cy="130" r="6" fill="white"/>
+          <circle cx="75" cy="90" r="5" fill="rgba(255,255,255,0.8)"/>
+          <circle cx="175" cy="185" r="5" fill="rgba(255,255,255,0.8)"/>
+          <line x1="40" y1="200" x2="100" y2="160" stroke="rgba(255,255,255,0.6)" stroke-width="2"/>
+          <polygon points="100,160 88,155 93,168" fill="rgba(255,255,255,0.6)"/>
+          <rect x="148" y="210" width="60" height="22" rx="5" fill="rgba(255,255,255,0.2)" stroke="rgba(255,255,255,0.5)" stroke-width="1.5"/>
+          <rect x="158" y="200" width="40" height="15" rx="4" fill="rgba(255,255,255,0.15)" stroke="rgba(255,255,255,0.4)" stroke-width="1.5"/>
+          <circle cx="162" cy="232" r="6" fill="rgba(255,255,255,0.5)"/>
+          <circle cx="196" cy="232" r="6" fill="rgba(255,255,255,0.5)"/>
+          <text x="30" y="55" fill="rgba(255,255,255,0.7)" font-size="14" font-family="monospace">v = v₀ + a·t</text>
+          <text x="30" y="80" fill="rgba(255,255,255,0.5)" font-size="12" font-family="monospace">F = m·a</text>
+        </svg>
+      </div>
+    </div>
+    <div class="auth-blob auth-blob-1"></div>
+    <div class="auth-blob auth-blob-2"></div>
+  </aside>
+
+  {# Lado direito: formulário #}
+  <main class="auth-main">
+    <div class="auth-card animate-fadeIn">
+      <div class="auth-brand-mobile">FísicaFlow</div>
+
+      {{ flash_alerts() }}
+
+      {% block auth_content %}{% endblock %}
+    </div>
+  </main>
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/auth.js') }}"></script>
+{% endblock %}

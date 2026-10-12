@@ -1,0 +1,46 @@
+{% extends "layouts/app_base.html" %}
+{% from "components/macros.html" import icon %}
+
+{% block title %}Dashboard - FísicaFlow{% endblock %}
+{% block page_title %}Dashboard{% endblock %}
+
+{% block content %}
+<section class="card welcome animate-fadeIn">
+  <h2>Olá, {{ current_user.name.split()[0] }}! 👋</h2>
+  <p>Bem-vindo(a) à FísicaFlow. Seu painel de estudos está sendo construído.</p>
+</section>
+
+<h3 class="section-title">O que vem por aí</h3>
+<div class="module-grid">
+  <article class="card module">
+    <span class="module-icon">{{ icon('check-square', 20) }}</span>
+    <h3>Tarefas</h3>
+    <p>Organize o que precisa estudar, com prazo e prioridade.</p>
+  </article>
+  <article class="card module">
+    <span class="module-icon">{{ icon('target', 20) }}</span>
+    <h3>Metas</h3>
+    <p>Defina metas de curto, médio e longo prazo.</p>
+  </article>
+  <article class="card module">
+    <span class="module-icon">{{ icon('calendar', 20) }}</span>
+    <h3>Cronograma</h3>
+    <p>Monte sua semana de estudos por disciplina.</p>
+  </article>
+  <article class="card module">
+    <span class="module-icon">{{ icon('timer', 20) }}</span>
+    <h3>Pomodoro</h3>
+    <p>Foque em sessões curtas e ganhe pontos.</p>
+  </article>
+  <article class="card module">
+    <span class="module-icon is-physics">{{ icon('atom', 20) }}</span>
+    <h3>Física</h3>
+    <p>Teoria e simuladores de Cinemática e Dinâmica.</p>
+  </article>
+  <article class="card module">
+    <span class="module-icon is-points">{{ icon('trophy', 20) }}</span>
+    <h3>Ranking</h3>
+    <p>Compare sua pontuação com a da turma.</p>
+  </article>
+</div>
+{% endblock %}

@@ -1,0 +1,100 @@
+{% extends "layouts/app_base.html" %}
+{% from "components/macros.html" import icon %}
+
+{% block title %}Metas - FísicaFlow{% endblock %}
+{% block page_title %}Metas{% endblock %}
+
+{% block content %}
+<div class="animate-fadeIn" data-goals-page>
+
+  <div class="page-header">
+    <div>
+      <h2 class="page-title">Metas</h2>
+      <p class="page-sub"><span data-count="abertas">{{ counts.abertas }}</span> em andamento</p>
+    </div>
+    <button type="button" class="btn btn-primary" data-action="new">
+      {{ icon('plus', 16) }} Nova meta
+    </button>
+  </div>
+
+  {# Filtro por tipo de meta (feito no navegador, sem recarregar a página) #}
+  <div class="chips" role="group" aria-label="Filtrar por tipo">
+    <button type="button" class="chip-btn is-active" data-filter="todas" aria-pressed="true">Todas</button>
+    {% for codigo, rotulo in tipos.items() %}
+    <button type="button" class="chip-btn" data-filter="{{ codigo }}" aria-pressed="false">{{ rotulo }}</button>
+    {% endfor %}
+  </div>
+
+  <div class="goal-grid" data-goal-list>
+    {% for g in goals %}
+      {% include "goals/_goal_card.html" %}
+    {% endfor %}
+  </div>
+
+  <div class="empty" data-empty {% if goals %}hidden{% endif %}>
+    {{ icon('target', 48) }}
+    <h3>Nenhuma meta aqui</h3>
+    <p>Defina uma meta para se motivar!</p>
+  </div>
+
+  {# ---- Modal: nova / editar meta ---- #}
+  <dialog class="modal" data-modal="form" aria-labelledby="goal-modal-title">
+    <form class="modal-content" data-goal-form novalidate>
+      <div class="modal-header">
+        <h3 id="goal-modal-title" data-form-title>Nova meta</h3>
+        <button type="button" class="icon-btn" data-close aria-label="Fechar">{{ icon('x', 18) }}</button>
+      </div>
+
+      <p class="alert alert-danger" role="alert" data-form-error hidden></p>
+
+      <div class="form">
+        <div class="field">
+          <label class="field-label" for="goal-title">Título *</label>
+          <input class="input input-plain" id="goal-title" name="title" maxlength="120" placeholder="Ex.: Concluir Cinemática" required>
+          <p class="field-error" data-error-for="title" hidden></p>
+        </div>
+
+        <div class="form-row">
+          <div class="field">
+            <label class="field-label" for="goal-type">Tipo *</label>
+            <select class="input input-plain" id="goal-type" name="type">
+              {% for codigo, rotulo in tipos.items() %}
+              <option value="{{ codigo }}">{{ rotulo }}</option>
+              {% endfor %}
+            </select>
+            <p class="field-error" data-error-for="type" hidden></p>
+          </div>
+          <div class="field">
+            <label class="field-label" for="goal-due">Prazo *</label>
+            <input class="input input-plain" type="date" id="goal-due" name="due_date" required>
+            <p class="field-error" data-error-for="due_date" hidden></p>
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" class="btn btn-soft" data-close>Cancelar</button>
+        <button type="submit" class="btn btn-primary" data-submit>Criar meta</button>
+      </div>
+    </form>
+  </dialog>
+
+  {# ---- Modal: confirmar exclusão ---- #}
+  <dialog class="modal modal-sm" data-modal="delete" aria-labelledby="delete-modal-title">
+    <div class="modal-content modal-center">
+      <div class="modal-alert-icon">{{ icon('alert-triangle', 24) }}</div>
+      <h3 id="delete-modal-title">Excluir meta?</h3>
+      <p class="modal-text">Esta ação não pode ser desfeita.</p>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-soft" data-close>Cancelar</button>
+        <button type="button" class="btn btn-danger" data-confirm-delete>Excluir</button>
+      </div>
+    </div>
+  </dialog>
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/goals.js') }}"></script>
+{% endblock %}

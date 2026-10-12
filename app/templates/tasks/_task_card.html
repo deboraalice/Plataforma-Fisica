@@ -1,0 +1,32 @@
+{# Card de uma tarefa. Usado pela página e também devolvido nas respostas
+   JSON da API (campo "html"), para o AJAX não precisar duplicar o HTML. #}
+{% from "components/macros.html" import icon %}
+<article class="task{% if t.is_done %} is-done{% endif %}"
+         data-task-card data-id="{{ t.id }}" data-status="{{ t.status }}"
+         data-due="{{ t.due_date.isoformat() }}"
+         data-task='{{ t.to_dict()|tojson }}'>
+
+  <button type="button" class="task-check" data-action="toggle"
+          aria-pressed="{{ 'true' if t.is_done else 'false' }}"
+          aria-label="{{ 'Reabrir tarefa' if t.is_done else 'Concluir tarefa' }}: {{ t.title }}">
+    {% if t.is_done %}{{ icon('check-circle', 22) }}{% else %}{{ icon('circle', 22) }}{% endif %}
+  </button>
+
+  <div class="task-body">
+    <h3 class="task-title">{{ t.title }}</h3>
+    {% if t.description %}<p class="task-desc">{{ t.description }}</p>{% endif %}
+    <div class="task-meta">
+      <span class="chip chip-subject">{{ t.subject }}</span>
+      <span class="chip chip-priority-{{ t.priority }}">{{ t.priority_label }}</span>
+      <span class="chip chip-status-{{ t.status }}">{{ t.status_label }}</span>
+      <span class="task-due{% if t.is_overdue %} is-overdue{% endif %}">
+        {{ icon('calendar', 13) }} {{ t.due_date.strftime('%d/%m/%Y') }}{% if t.is_overdue %} · atrasada{% endif %}
+      </span>
+    </div>
+  </div>
+
+  <div class="task-actions">
+    <button type="button" class="icon-btn" data-action="edit" aria-label="Editar tarefa: {{ t.title }}">{{ icon('pencil', 16) }}</button>
+    <button type="button" class="icon-btn icon-btn-danger" data-action="delete" aria-label="Excluir tarefa: {{ t.title }}">{{ icon('trash', 16) }}</button>
+  </div>
+</article>

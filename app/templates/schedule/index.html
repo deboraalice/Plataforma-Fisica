@@ -1,0 +1,103 @@
+{% extends "layouts/app_base.html" %}
+{% from "components/macros.html" import icon %}
+
+{% block title %}Cronograma - FísicaFlow{% endblock %}
+{% block page_title %}Cronograma{% endblock %}
+
+{% block content %}
+<div class="animate-fadeIn" data-schedule-page>
+
+  <div class="page-header">
+    <div>
+      <h2 class="page-title">Cronograma Semanal</h2>
+      <p class="page-sub" data-subtitle>{{ total }} bloco{{ '' if total == 1 else 's' }} programado{{ '' if total == 1 else 's' }}</p>
+    </div>
+    <button type="button" class="btn btn-primary" data-action="new">
+      {{ icon('plus', 16) }} Novo horário
+    </button>
+  </div>
+
+  <div data-board>
+    {% include "schedule/_board.html" %}
+  </div>
+
+  {# ---- Modal: novo / editar horário ---- #}
+  <dialog class="modal" data-modal="form" aria-labelledby="sched-modal-title">
+    <form class="modal-content" novalidate>
+      <div class="modal-header">
+        <h3 id="sched-modal-title" data-form-title>Novo horário</h3>
+        <button type="button" class="icon-btn" data-close aria-label="Fechar">{{ icon('x', 18) }}</button>
+      </div>
+
+      {# conflito de horário e outros erros gerais aparecem aqui #}
+      <p class="alert alert-danger" role="alert" data-form-error hidden></p>
+
+      <div class="form">
+        <div class="field">
+          <label class="field-label" for="sched-subject">Disciplina *</label>
+          <input class="input input-plain" id="sched-subject" name="subject" maxlength="80" placeholder="Ex.: Física – Cinemática" required>
+          <p class="field-error" data-error-for="subject" hidden></p>
+        </div>
+
+        <div class="field">
+          <label class="field-label" for="sched-weekday">Dia da semana</label>
+          <select class="input input-plain" id="sched-weekday" name="weekday">
+            {% for d in dias %}<option value="{{ loop.index0 }}">{{ d }}</option>{% endfor %}
+          </select>
+          <p class="field-error" data-error-for="weekday" hidden></p>
+        </div>
+
+        <div class="form-row">
+          <div class="field">
+            <label class="field-label" for="sched-start">Início</label>
+            <input class="input input-plain" type="time" id="sched-start" name="start_time" value="08:00" min="06:00" max="22:00" required>
+            <p class="field-error" data-error-for="start_time" hidden></p>
+          </div>
+          <div class="field">
+            <label class="field-label" for="sched-end">Fim</label>
+            <input class="input input-plain" type="time" id="sched-end" name="end_time" value="10:00" min="06:00" max="22:00" required>
+            <p class="field-error" data-error-for="end_time" hidden></p>
+          </div>
+        </div>
+
+        <div class="field">
+          <span class="field-label" id="sched-color-label">Cor</span>
+          <div class="swatches" role="radiogroup" aria-labelledby="sched-color-label">
+            {% for codigo, nome in cores.items() %}
+            <label class="swatch c-{{ codigo }}" title="{{ nome }}">
+              <input type="radio" name="color" value="{{ codigo }}"{% if loop.first %} checked{% endif %}>
+              <span class="swatch-dot"></span>
+              <span class="sr-only">{{ nome }}</span>
+            </label>
+            {% endfor %}
+          </div>
+          <p class="field-error" data-error-for="color" hidden></p>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" class="btn btn-soft" data-close>Cancelar</button>
+        <button type="submit" class="btn btn-primary" data-submit>Salvar</button>
+      </div>
+    </form>
+  </dialog>
+
+  {# ---- Modal: confirmar exclusão ---- #}
+  <dialog class="modal modal-sm" data-modal="delete" aria-labelledby="delete-modal-title">
+    <div class="modal-content modal-center">
+      <div class="modal-alert-icon">{{ icon('alert-triangle', 24) }}</div>
+      <h3 id="delete-modal-title">Excluir horário?</h3>
+      <p class="modal-text">Esta ação não pode ser desfeita.</p>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-soft" data-close>Cancelar</button>
+        <button type="button" class="btn btn-danger" data-confirm-delete>Excluir</button>
+      </div>
+    </div>
+  </dialog>
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/schedule.js') }}"></script>
+{% endblock %}
