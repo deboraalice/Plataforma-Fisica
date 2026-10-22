@@ -1,0 +1,16 @@
+{# Últimas sessões de foco. Usado pela página e devolvido na resposta JSON
+   ao concluir uma sessão (campo "history_html"). #}
+{% if sessoes %}
+<section class="card pomo-history">
+  <h3 class="pomo-history-title">Últimas sessões</h3>
+  <ul class="pomo-history-list">
+    {% for s in sessoes %}
+    <li class="pomo-history-item">
+      <span class="pomo-history-what"><span class="pomo-dot" aria-hidden="true"></span> Foco – {{ s.minutes }} min</span>
+      <span class="pomo-history-points">+{{ s.points_awarded }} pts</span>
+      <span class="pomo-history-time">{{ s.when_label }}</span>
+    </li>
+    {% endfor %}
+  </ul>
+</section>
+{% endif %}

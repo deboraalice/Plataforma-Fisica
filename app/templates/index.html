@@ -1,0 +1,140 @@
+{% extends "layouts/app_base.html" %}
+{% from "components/macros.html" import icon %}
+
+{% block title %}Dashboard - FísicaFlow{% endblock %}
+{% block page_title %}Dashboard{% endblock %}
+
+{% block content %}
+{% if d %}
+
+<section class="dash-hello animate-fadeIn">
+  <h2>{{ d.saudacao }}, {{ d.primeiro_nome }}! 👋</h2>
+  <p>Você está indo bem. Continue assim!</p>
+</section>
+
+{# ---- Cards de resumo ---- #}
+<section class="dash-stats" aria-label="Resumo">
+  <article class="card dash-stat">
+    <header><span>Horas esta semana</span><span class="dash-stat-icon is-indigo">{{ icon('clock', 16) }}</span></header>
+    <strong>{{ d.semana.total }}</strong>
+    <small>{{ d.semana.comparacao }}</small>
+  </article>
+
+  <article class="card dash-stat">
+    <header><span>Tarefas concluídas</span><span class="dash-stat-icon is-green">{{ icon('check-square', 16) }}</span></header>
+    <strong>{{ d.tarefas.concluidas }} / {{ d.tarefas.total }}</strong>
+    <small>{{ d.tarefas.pendentes }} pendente{{ '' if d.tarefas.pendentes == 1 else 's' }}</small>
+  </article>
+
+  <article class="card dash-stat">
+    <header><span>Metas atingidas</span><span class="dash-stat-icon is-cyan">{{ icon('target', 16) }}</span></header>
+    <strong>{{ d.metas.concluidas }} / {{ d.metas.total }}</strong>
+    <small>{{ d.metas.prazo }}</small>
+  </article>
+
+  {# PROVISÓRIO: trocar por dados reais quando a tela de Física existir #}
+  <article class="card dash-stat">
+    <header><span>Tópicos concluídos</span><span class="dash-stat-icon is-violet">{{ icon('atom', 16) }}</span></header>
+    <strong>{{ d.topicos.concluidos }} / {{ d.topicos.total }}</strong>
+    <small>{{ d.topicos.resumo }}</small>
+  </article>
+</section>
+
+{# ---- Gráfico semanal + pontuação ---- #}
+<section class="dash-row dash-row-chart">
+  <article class="card dash-panel">
+    <header class="dash-panel-head">
+      <h3>Horas estudadas esta semana</h3>
+      {% if d.semana.variacao is not none %}
+        <span class="dash-trend{% if d.semana.variacao < 0 %} is-down{% endif %}">
+          {{ icon('trending-up', 13) }} {{ '+' if d.semana.variacao >= 0 else '−' }}{{ d.semana.variacao|abs }}% vs. semana passada
+        </span>
+      {% endif %}
+    </header>
+
+    <div class="dash-bars" role="list" aria-label="Horas estudadas por dia da semana">
+      {% for b in d.semana.barras %}
+      <div class="dash-bar-col{% if b.hoje %} is-today{% endif %}" role="listitem"
+           aria-label="{{ b.dia }}: {{ b.rotulo }}">
+        <span class="dash-bar-value">{{ b.rotulo }}</span>
+        <div class="dash-bar-track">
+          <div class="dash-bar-fill" style="height: {{ b.pct }}%"></div>
+        </div>
+        <span class="dash-bar-day">{{ b.dia }}</span>
+      </div>
+      {% endfor %}
+    </div>
+  </article>
+
+  <article class="dash-score">
+    <header>{{ icon('trophy', 18) }} <span>Sua pontuação</span></header>
+    <div class="dash-score-number font-mono"><span data-points>{{ d.pontos }}</span></div>
+    <p>pontos totais</p>
+    {# PROVISÓRIO: posição fixa até o Ranking existir #}
+    <div class="dash-rank">
+      <span class="dash-rank-pos">{{ d.posicao }}º</span>
+      <span>posição no ranking</span>
+    </div>
+    <span class="dash-score-link is-soon">Ver ranking completo {{ icon('chevron-right', 14) }}</span>
+  </article>
+</section>
+
+{# ---- Próximas tarefas + Física em andamento ---- #}
+<section class="dash-row dash-row-lists">
+  <article class="card dash-panel">
+    <header class="dash-panel-head">
+      <h3>Próximas tarefas</h3>
+      <a class="dash-link" href="{{ url_for('tarefas') }}">Ver todas {{ icon('chevron-right', 14) }}</a>
+    </header>
+
+    {% if d.proximas %}
+    <ul class="dash-tasks">
+      {% for t in d.proximas %}
+      <li>
+        <span class="dash-dot tom-{{ t.tom }}" aria-hidden="true"></span>
+        <div class="dash-task-text">
+          <strong>{{ t.titulo }}</strong>
+          <small>{{ t.disciplina }}</small>
+        </div>
+        <span class="dash-pill tom-{{ t.tom }}">{{ t.rotulo }}</span>
+      </li>
+      {% endfor %}
+    </ul>
+    {% else %}
+    <p class="dash-empty">Nenhuma tarefa em aberto. Que tal criar a próxima?</p>
+    {% endif %}
+  </article>
+
+  {# PROVISÓRIO: progresso fixo até a tela de Física existir #}
+  <article class="card dash-panel">
+    <header class="dash-panel-head">
+      <h3>Física em andamento</h3>
+      <span class="dash-link is-soon">Ver tópicos {{ icon('chevron-right', 14) }}</span>
+    </header>
+
+    <ul class="dash-progress">
+      {% for f in d.fisica %}
+      <li>
+        <div class="dash-progress-top"><span>{{ f.emoji }} {{ f.nome }}</span><span>{{ f.pct }}%</span></div>
+        <div class="dash-progress-track" role="progressbar" aria-valuemin="0" aria-valuemax="100"
+             aria-valuenow="{{ f.pct }}" aria-label="{{ f.nome }}">
+          <div class="dash-progress-fill" style="width: {{ f.pct }}%"></div>
+        </div>
+      </li>
+      {% endfor %}
+    </ul>
+
+    <a class="btn btn-primary btn-block dash-cta" href="{{ url_for('pomodoro') }}">
+      {{ icon('timer', 16) }} Iniciar Pomodoro
+    </a>
+  </article>
+</section>
+
+{% else %}
+{# Professores ainda não têm painel próprio #}
+<section class="card welcome animate-fadeIn">
+  <h2>Olá, {{ current_user.name.split()[0] }}! 👋</h2>
+  <p>Bem-vindo(a) à FísicaFlow. O painel do professor está sendo construído.</p>
+</section>
+{% endif %}
+{% endblock %}
