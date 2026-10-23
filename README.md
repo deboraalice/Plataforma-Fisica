@@ -76,7 +76,7 @@ Plataforma-Fisica/
 - Maria Helen Moreno de Araújo
 - Joanny Câmara Maranhão
 
-**Orientadoras**
+**Orientadores**
 
 - Bruna Raissa Gomes dos Santos Batista
 - Leo Moreira Silva
