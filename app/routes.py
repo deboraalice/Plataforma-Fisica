@@ -3,7 +3,7 @@ from flask import jsonify, redirect, render_template, request, session, url_for,
 from flask_login import login_user, logout_user, login_required, current_user
 from app import app, db
 from app.forms.login_form import LoginForm
-from app.forms.student_form import StudentForm
+from app.forms.student_form import RegistrationForm
 from app.forms.task_form import TaskForm
 from app.forms.goal_form import GoalForm
 from app.forms.schedule_form import ScheduleForm
@@ -123,15 +123,24 @@ def cadastrar_student():
     if current_user.is_authenticated:
         return redirect(url_for("index"))
  
-    formulario = StudentForm()
+    formulario = RegistrationForm()
  
     if formulario.validate_on_submit():
-        student = StudentService.salvar(formulario)
-        login_user(student)
-        flash(f"Cadastro concluído! Bem-vindo(a), {student.name}.", "success")
+        if formulario.profile_type.data == "professor":
+            usuario = ProfessorService.salvar(formulario)
+            papel = "professor"
+        else:
+            usuario = StudentService.salvar(formulario)
+            papel = "aluno"
+        login_user(usuario)
+        flash(f"Cadastro de {papel} concluído! Bem-vindo(a), {usuario.name}.", "success")
         return redirect(url_for("index"))
  
-    return render_template("student/signin.html", formulario=formulario)
+    return render_template(
+        "student/signin.html",
+        formulario=formulario,
+        professor_signup_enabled=bool(app.config.get("PROFESSOR_SIGNUP_CODE")),
+    )
 
 
 # ---------------------------------------------------------------------------

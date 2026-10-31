@@ -21,7 +21,8 @@ class ProfessorService:
     @staticmethod
     def salvar(formulario):
         professor = Professor()
-        formulario.populate_obj(professor)
+        professor.name = formulario.name.data.strip()
+        professor.email = formulario.email.data.strip().lower()
         professor.set_password(formulario.password.data)
 
         db.session.add(professor)

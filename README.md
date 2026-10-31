@@ -48,10 +48,15 @@ Exemplo de `.env` (não envie este arquivo ao GitHub):
 ```
 SECRET_KEY=troque-por-uma-chave-segura
 DATABASE_URL=sqlite:///app.db
+# Código compartilhado temporário para autorizar cadastros de professor
+PROFESSOR_SIGNUP_CODE=defina-um-codigo-longo-e-nao-o-versione
 # Credenciais do SUAP (quando a integração for feita)
 SUAP_CLIENT_ID=
 SUAP_CLIENT_SECRET=
 ```
+
+Sem `PROFESSOR_SIGNUP_CODE`, o cadastro manual de professor fica desabilitado.
+Durante essa etapa provisória, compartilhe o código somente com docentes autorizados.
 
 ## Estrutura do projeto
 

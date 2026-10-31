@@ -31,7 +31,8 @@ class StudentService:
         checkbox.
         """
         student = Student()
-        formulario.populate_obj(student)
+        student.name = formulario.name.data.strip()
+        student.email = formulario.email.data.strip().lower()
         student.is_if = StudentService._email_e_institucional(student.email)
         student.set_password(formulario.password.data)
 

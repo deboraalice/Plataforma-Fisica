@@ -8,6 +8,7 @@ basedir = os.path.abspath(os.path.dirname(__file__))
 
 class Config:
     SECRET_KEY = os.environ.get("SECRET_KEY") or "troque-isso-em-producao"
+    PROFESSOR_SIGNUP_CODE = os.environ.get("PROFESSOR_SIGNUP_CODE", "").strip()
 
     SQLALCHEMY_DATABASE_URI = os.environ.get(
         "DATABASE_URL"

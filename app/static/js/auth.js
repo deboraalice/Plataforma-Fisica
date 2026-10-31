@@ -39,6 +39,17 @@
     avaliar();
   }
 
+  /* ---- Código provisório para cadastro de professor ---- */
+  var perfil = document.querySelector('[data-profile-type]');
+  var campoCodigoProfessor = document.querySelector('[data-professor-code]');
+  if (perfil && campoCodigoProfessor) {
+    var atualizarCampoCodigo = function () {
+      campoCodigoProfessor.hidden = perfil.value !== 'professor';
+    };
+    perfil.addEventListener('change', atualizarCampoCodigo);
+    atualizarCampoCodigo();
+  }
+
   /* ---- Aviso sobre e-mail institucional (IFRN) ---- */
   var email = document.querySelector('[data-ifrn-domains]');
   if (email) {

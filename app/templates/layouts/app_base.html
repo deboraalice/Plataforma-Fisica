@@ -6,15 +6,23 @@
   Para ligar um item do menu a uma tela nova, troque o `endpoint` de None
   para o nome da função da rota (ex.: 'tarefas') e ele passa a funcionar.
 #}
-{% set nav_items = [
-  ('index',      'layout-dashboard', 'Dashboard'),
-  ('tarefas',    'check-square',     'Tarefas'),
-  ('metas',      'target',           'Metas'),
-  ('cronograma', 'calendar',         'Cronograma'),
-  ('pomodoro',   'timer',            'Pomodoro'),
-  (None,         'atom',             'Física'),
-  (None,         'trophy',           'Ranking'),
-] %}
+{% if current_user.get_id().startswith('professor:') %}
+  {% set nav_items = [
+    (None, 'clipboard-list', 'Turmas'),
+    (None, 'atom', 'Física'),
+    (None, 'settings', 'Configurações'),
+  ] %}
+{% else %}
+  {% set nav_items = [
+    ('index',      'layout-dashboard', 'Dashboard'),
+    ('tarefas',    'check-square',     'Tarefas'),
+    ('metas',      'target',           'Metas'),
+    ('cronograma', 'calendar',         'Cronograma'),
+    ('pomodoro',   'timer',            'Pomodoro'),
+    (None,         'atom',             'Física'),
+    (None,         'trophy',           'Ranking'),
+  ] %}
+{% endif %}
 
 {% set partes = current_user.name.split() %}
 {% set iniciais = (partes[0][0] ~ (partes[-1][0] if partes|length > 1 else ''))|upper %}
@@ -70,7 +78,9 @@
           <div class="user-role">{{ papel }}</div>
         </div>
       </div>
+      {% if not current_user.get_id().startswith('professor:') %}
       <div class="points-badge points-badge-side" title="Seus pontos">{{ icon('zap', 14) }} <span data-points>{{ pontos }}</span> pts</div>
+      {% endif %}
       <a class="logout" href="{{ url_for('logout') }}">{{ icon('log-out', 16) }} Sair</a>
     </div>
   </aside>
@@ -85,7 +95,9 @@
           <span class="to-dark">{{ icon('moon', 14) }} Escuro</span>
           <span class="to-light">{{ icon('sun', 14) }} Claro</span>
         </button>
+        {% if not current_user.get_id().startswith('professor:') %}
         <div class="points-badge points-badge-top" title="Seus pontos">{{ icon('zap', 14) }} <span data-points>{{ pontos }}</span> pts</div>
+        {% endif %}
         <div class="avatar avatar-sm" title="{{ current_user.name }}">{{ iniciais }}</div>
       </div>
     </header>
