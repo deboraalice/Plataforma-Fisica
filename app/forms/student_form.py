@@ -1,7 +1,4 @@
-import hmac
-
 from flask_wtf import FlaskForm
-from flask import current_app
 from wtforms import StringField, PasswordField, SelectField, SubmitField
 from wtforms.validators import DataRequired, Email, Length, EqualTo, ValidationError
 
@@ -12,10 +9,13 @@ from app.services.ProfessorService import ProfessorService
 class RegistrationForm(FlaskForm):
     profile_type = SelectField(
         "Tipo de perfil",
-        choices=[],
+        choices=[
+            ("", "Selecione seu perfil"),
+            ("student", "Aluno"),
+            ("professor", "Professor"),
+        ],
         validators=[DataRequired(message="Escolha o tipo de perfil.")],
     )
-    professor_code = PasswordField("Código de convite docente")
     name = StringField(
         "Nome completo",
         validators=[
@@ -45,24 +45,6 @@ class RegistrationForm(FlaskForm):
         ],
     )
     submit = SubmitField("Cadastrar")
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        choices = [("", "Selecione seu perfil"), ("student", "Aluno")]
-        if current_app.config.get("PROFESSOR_SIGNUP_CODE"):
-            choices.append(("professor", "Professor"))
-        self.profile_type.choices = choices
-
-    def validate_professor_code(self, field):
-        if self.profile_type.data != "professor":
-            return
-
-        codigo_configurado = current_app.config.get("PROFESSOR_SIGNUP_CODE", "")
-        codigo_enviado = (field.data or "").strip()
-        if not codigo_configurado:
-            raise ValidationError("O cadastro de professores está desativado no momento.")
-        if not hmac.compare_digest(codigo_enviado, codigo_configurado):
-            raise ValidationError("Código de convite inválido.")
 
     def validate_email(self, field):
         field.data = field.data.strip().lower()

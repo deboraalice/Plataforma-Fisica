@@ -1,0 +1,51 @@
+{% extends "layouts/app_base.html" %}
+{% from "components/macros.html" import icon %}
+
+{% block title %}Física - FísicaFlow{% endblock %}
+{% block page_title %}Física{% endblock %}
+
+{% block content %}
+<div class="physics-page animate-fadeIn">
+  <div class="physics-heading">
+    <h2>Tópicos de Física</h2>
+    {% if current_user.get_id().startswith('student:') %}
+      <p>{{ total_concluidos }} de {{ total_topicos }} tópicos concluídos</p>
+    {% else %}
+      <p>{{ total_topicos }} tópicos disponíveis</p>
+    {% endif %}
+  </div>
+
+  {% if topicos %}
+  <div class="physics-topic-grid">
+    {% for item in topicos %}
+      {% set topico = item.topico %}
+      <a class="physics-topic-card" href="{{ url_for('topico_fisica', slug=topico.slug) }}">
+        <div class="physics-topic-card-top">
+          <span class="physics-topic-emoji" aria-hidden="true">{{ topico.emoji or '⚛️' }}</span>
+          {% if current_user.get_id().startswith('student:') and item.concluido %}
+            <span class="physics-completed-chip">{{ icon('check-circle', 14) }} Concluído</span>
+          {% endif %}
+        </div>
+        <h3>{{ topico.title }}</h3>
+        <p class="physics-topic-summary">{{ topico.summary }}</p>
+        {% if current_user.get_id().startswith('student:') %}
+        <div class="physics-progress-label"><span>Progresso</span><span>{{ item.progresso }}%</span></div>
+        <div class="physics-progress-track" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="{{ item.progresso }}" aria-label="Progresso em {{ topico.title }}">
+          <span style="width:{{ item.progresso }}%" class="{% if item.concluido %}is-complete{% endif %}"></span>
+        </div>
+        {% else %}
+        <p class="physics-unit-name">{{ topico.unit.name }}</p>
+        {% endif %}
+        <span class="physics-study-link">Estudar {{ icon('chevron-right', 16) }}</span>
+      </a>
+    {% endfor %}
+  </div>
+  {% else %}
+    <div class="empty">
+      {{ icon('atom', 48) }}
+      <h3>Conteúdo em preparação</h3>
+      <p>Os tópicos de Física aparecerão aqui quando forem publicados.</p>
+    </div>
+  {% endif %}
+</div>
+{% endblock %}

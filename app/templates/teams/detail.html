@@ -1,0 +1,80 @@
+{% extends "layouts/app_base.html" %}
+{% from "components/macros.html" import icon, field %}
+
+{% block title %}{{ turma.nome }} - FísicaFlow{% endblock %}
+{% block page_title %}{{ turma.nome }}{% endblock %}
+
+{% block content %}
+<div class="animate-fadeIn">
+  <div class="page-header">
+    <div>
+      <a class="dash-link" href="{{ url_for('turmas') }}">{{ icon('chevron-right', 14) }} Voltar às turmas</a>
+      <h2 class="page-title" style="margin-top:10px;">{{ turma.nome }}</h2>
+      {% if turma.archived_at %}<p class="page-sub">Turma arquivada</p>{% else %}<p class="page-sub">{{ alunos|length }} aluno{{ '' if alunos|length == 1 else 's' }} vinculados</p>{% endif %}
+    </div>
+  </div>
+
+  {% if turma.archived_at %}
+  <div class="hint hint-info">Esta turma foi arquivada. O histórico dos vínculos foi preservado.</div>
+  {% else %}
+  <section class="card" style="padding:24px; margin-bottom:20px;">
+    <h3 style="margin-bottom:8px;">Código de acesso</h3>
+    {% if turma.access_code and turma.access_code_active %}
+      <p>Compartilhe este código com os alunos que devem entrar na turma:</p>
+      <p class="font-mono" style="font-size:28px; font-weight:700; letter-spacing:.12em; margin:12px 0;">{{ turma.access_code }}</p>
+      <form method="POST" action="{{ url_for('desativar_codigo_turma', team_id=turma.id) }}" onsubmit="return confirm('Desativar o código? Alunos não poderão entrar até você gerar outro.');">
+        {{ formulario_acao.hidden_tag() }}
+        <button class="btn btn-soft" type="submit">Desativar código</button>
+      </form>
+    {% else %}
+      <p>Não há um código ativo. Gere um novo para permitir a entrada de alunos.</p>
+    {% endif %}
+    <form method="POST" action="{{ url_for('renovar_codigo_turma', team_id=turma.id) }}" style="margin-top:12px;" onsubmit="return confirm('Gerar um novo código? O código anterior deixará de funcionar.');">
+      {{ formulario_acao.hidden_tag() }}
+      <button class="btn btn-primary" type="submit">{{ icon('rotate-ccw', 16) }} {% if turma.access_code_active %}Gerar novo código{% else %}Ativar com novo código{% endif %}</button>
+    </form>
+  </section>
+
+  <section class="card" style="padding:24px; margin-bottom:20px;">
+    <h3 style="margin-bottom:16px;">Editar turma</h3>
+    <form method="POST" class="form" novalidate>
+      {{ formulario.hidden_tag() }}
+      {{ field(formulario.nome, 'clipboard-list', placeholder='Nome da turma') }}
+      <button type="submit" class="btn btn-secondary">Salvar nome</button>
+    </form>
+  </section>
+
+  <section class="card" style="padding:24px; margin-bottom:20px;">
+    <h3 style="margin-bottom:16px;">Alunos</h3>
+    {% if alunos %}
+      <div class="task-list">
+        {% for aluno in alunos %}
+          {% set vinculo = vinculo_por_aluno.get(aluno.id) %}
+          <div class="card" style="padding:16px; display:flex; align-items:center; justify-content:space-between; gap:16px;">
+            <div>
+              <strong>{{ aluno.name }}</strong>
+              <div class="page-sub">{{ aluno.email }} · Entrou {% if vinculo and vinculo.joined_at %}em {{ para_local(vinculo.joined_at).strftime('%d/%m/%Y') }}{% else %}antes do início do histórico disponível{% endif %}</div>
+            </div>
+            <form method="POST" action="{{ url_for('remover_aluno_turma', team_id=turma.id, student_id=aluno.id) }}" onsubmit="return confirm('Remover {{ aluno.name|e }} da turma? O histórico será preservado.');">
+              {{ formulario_acao.hidden_tag() }}
+              <button type="submit" class="btn btn-soft">Remover</button>
+            </form>
+          </div>
+        {% endfor %}
+      </div>
+    {% else %}
+      <p class="page-sub">Nenhum aluno entrou nesta turma ainda.</p>
+    {% endif %}
+  </section>
+
+  <section class="card" style="padding:24px; border-color:var(--error);">
+    <h3 style="margin-bottom:8px;">Arquivar turma</h3>
+    <p class="page-sub" style="margin-bottom:16px;">Os alunos ficarão sem turma, o código será desativado e o histórico será preservado.</p>
+    <form method="POST" action="{{ url_for('arquivar_turma', team_id=turma.id) }}" onsubmit="return confirm('Arquivar esta turma? Os alunos serão desvinculados e o histórico será preservado.');">
+      {{ formulario_acao.hidden_tag() }}
+      <button type="submit" class="btn btn-danger">Arquivar turma</button>
+    </form>
+  </section>
+  {% endif %}
+</div>
+{% endblock %}

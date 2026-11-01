@@ -7,23 +7,13 @@ from app.models.task import Task
 from app.services.GoalService import GoalService
 from app.services.PointsService import PointsService
 from app.services.TaskService import TaskService
+from app.services.PhysicsService import PhysicsService
 
 FUSO = ZoneInfo("America/Sao_Paulo")
 DIAS_CURTOS = ["Seg", "Ter", "Qua", "Qui", "Sex", "Sáb", "Dom"]
 MESES = ["jan", "fev", "mar", "abr", "mai", "jun",
          "jul", "ago", "set", "out", "nov", "dez"]
 
-# ---------------------------------------------------------------------------
-# DADOS PROVISÓRIOS (exemplo do protótipo)
-# As telas de Física e Ranking ainda não existem. Quando existirem, troque
-# estas constantes por consultas reais (ex.: PhysicsService, RankingService).
-# ---------------------------------------------------------------------------
-TOPICOS_PROVISORIOS = {"concluidos": 3, "total": 10, "resumo": "Cinemática, Óptica..."}
-FISICA_PROVISORIA = [
-    {"nome": "Cinemática", "emoji": "🚗", "pct": 75},
-    {"nome": "Dinâmica", "emoji": "⚡", "pct": 40},
-    {"nome": "Energia", "emoji": "🔋", "pct": 20},
-]
 POSICAO_RANKING_PROVISORIA = 4
 
 
@@ -184,6 +174,9 @@ class DashboardService:
         tarefas = TaskService.contar(sid)
         metas = GoalService.contar(sid)
         semana = DashboardService.horas_da_semana(sid)
+        fisica = PhysicsService.listar_topicos(sid)
+        total_topicos = len(fisica)
+        topicos_concluidos = sum(1 for item in fisica if item["concluido"])
 
         return {
             "primeiro_nome": student.name.split()[0],
@@ -199,9 +192,20 @@ class DashboardService:
                 "total": metas["todas"],
                 "prazo": DashboardService.prazo_das_metas(sid),
             },
-            "topicos": TOPICOS_PROVISORIOS,          # provisório
+            "topicos": {
+                "concluidos": topicos_concluidos,
+                "total": total_topicos,
+                "resumo": f"{topicos_concluidos} de {total_topicos} tópicos concluídos",
+            },
             "pontos": PointsService.total(sid),
             "posicao": POSICAO_RANKING_PROVISORIA,   # provisório
             "proximas": DashboardService.proximas_tarefas(sid),
-            "fisica": FISICA_PROVISORIA,             # provisório
+            "fisica": [
+                {
+                    "nome": item["topico"].title,
+                    "emoji": item["topico"].emoji or "⚛️",
+                    "pct": item["progresso"],
+                }
+                for item in fisica[:3]
+            ],
         }

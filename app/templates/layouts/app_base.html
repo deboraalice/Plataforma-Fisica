@@ -8,8 +8,8 @@
 #}
 {% if current_user.get_id().startswith('professor:') %}
   {% set nav_items = [
-    (None, 'clipboard-list', 'Turmas'),
-    (None, 'atom', 'Física'),
+    ('turmas', 'clipboard-list', 'Turmas'),
+    ('fisica', 'atom', 'Física'),
     (None, 'settings', 'Configurações'),
   ] %}
 {% else %}
@@ -19,8 +19,9 @@
     ('metas',      'target',           'Metas'),
     ('cronograma', 'calendar',         'Cronograma'),
     ('pomodoro',   'timer',            'Pomodoro'),
-    (None,         'atom',             'Física'),
+    ('fisica',     'atom',             'Física'),
     (None,         'trophy',           'Ranking'),
+    ('configuracoes_aluno', 'settings', 'Configurações'),
   ] %}
 {% endif %}
 
@@ -57,9 +58,9 @@
     <nav class="nav" aria-label="Menu principal">
       {% for endpoint, icone, rotulo in nav_items %}
         {% if endpoint %}
-          <a class="nav-item{% if request.endpoint == endpoint %} is-active{% endif %}"
+          <a class="nav-item{% if request.endpoint == endpoint or (endpoint == 'fisica' and request.endpoint == 'topico_fisica') %} is-active{% endif %}"
              href="{{ url_for(endpoint) }}"
-             {% if request.endpoint == endpoint %}aria-current="page"{% endif %}>
+             {% if request.endpoint == endpoint or (endpoint == 'fisica' and request.endpoint == 'topico_fisica') %}aria-current="page"{% endif %}>
             {{ icon(icone, 18) }} {{ rotulo }}
           </a>
         {% else %}
@@ -110,7 +111,7 @@
     <nav class="bottomnav" aria-label="Menu principal (mobile)">
       {% for endpoint, icone, rotulo in nav_items[:5] %}
         {% if endpoint %}
-          <a class="bottomnav-item{% if request.endpoint == endpoint %} is-active{% endif %}" href="{{ url_for(endpoint) }}">
+          <a class="bottomnav-item{% if request.endpoint == endpoint or (endpoint == 'fisica' and request.endpoint == 'topico_fisica') %} is-active{% endif %}" href="{{ url_for(endpoint) }}">
             {{ icon(icone, 22) }}<span>{{ rotulo }}</span>
           </a>
         {% else %}

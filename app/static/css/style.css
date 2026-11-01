@@ -1428,3 +1428,74 @@ a.dash-link:hover { text-decoration: underline; }
 .dash-progress-track { height: 8px; border-radius: 999px; background: color-mix(in srgb, var(--primary) 10%, transparent); overflow: hidden; }
 .dash-progress-fill { height: 100%; border-radius: 999px; background: var(--gradient-brand); transition: width 0.4s ease-out; }
 .dash-cta { border-radius: 999px; }
+
+/* catálogo e conteúdo de Física */
+.physics-page { max-width: 1240px; margin: 0 auto; }
+.physics-heading { margin-bottom: 22px; }
+.physics-heading h2 { margin: 0 0 4px; font-size: 20px; font-weight: 700; color: var(--text); }
+.physics-heading p { margin: 0; color: var(--muted); font-size: 14px; }
+.physics-topic-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+.physics-topic-card {
+  display: flex;
+  min-height: 198px;
+  flex-direction: column;
+  padding: 20px;
+  border: 1px solid color-mix(in srgb, var(--border) 72%, transparent);
+  border-radius: var(--radius-lg);
+  background: var(--card);
+  box-shadow: var(--shadow-sm);
+  color: var(--text);
+  text-decoration: none;
+  transition: transform .16s ease, box-shadow .16s ease;
+}
+.physics-topic-card:hover { transform: translateY(-2px); box-shadow: var(--shadow-md); }
+.physics-topic-card-top { display: flex; min-height: 36px; align-items: flex-start; justify-content: space-between; margin-bottom: 8px; }
+.physics-topic-emoji { display: inline-flex; align-items: center; justify-content: center; font-size: 27px; line-height: 1; }
+.physics-topic-card h3 { margin: 2px 0 5px; font-size: 15px; font-weight: 650; }
+.physics-topic-summary { min-height: 38px; margin: 0 0 14px; color: var(--muted); font-size: 13px; line-height: 1.5; }
+.physics-completed-chip { display: inline-flex; align-items: center; gap: 4px; padding: 5px 9px; border-radius: 999px; background: #D1FAE5; color: #047857; font-size: 11px; font-weight: 600; }
+.physics-progress-label { display: flex; justify-content: space-between; margin: auto 0 5px; color: var(--subtle); font-size: 12px; }
+.physics-progress-label span:last-child { color: var(--primary); font-family: var(--font-mono); }
+.physics-progress-track { height: 6px; overflow: hidden; border-radius: 999px; background: color-mix(in srgb, var(--primary) 8%, var(--border)); }
+.physics-progress-track span { display: block; height: 100%; border-radius: inherit; background: var(--gradient-brand); transition: width .25s ease; }
+.physics-progress-track span.is-complete { background: var(--success); }
+.physics-unit-name { margin: auto 0 5px; color: var(--subtle); font-size: 12px; }
+.physics-study-link { display: flex; align-items: center; justify-content: space-between; margin-top: 11px; color: var(--primary); font-size: 12px; font-weight: 600; }
+.physics-study-link .icon { transform: rotate(0deg); }
+.physics-topic-content { width: min(100%, 760px); margin: 0 auto; }
+.physics-back-link { display: inline-flex; align-items: center; gap: 5px; margin: 0 0 24px; color: var(--primary); font-size: 13px; text-decoration: none; }
+.physics-back-link .icon { transform: rotate(180deg); }
+.physics-topic-title-row { display: flex; align-items: center; gap: 16px; margin-bottom: 22px; }
+.physics-topic-title-row .physics-topic-emoji { font-size: 36px; }
+.physics-topic-title-row h2 { margin: 0 0 3px; color: var(--text); font-size: 24px; }
+.physics-topic-title-row p { margin: 0; color: var(--muted); font-size: 14px; }
+.physics-intro { margin-bottom: 23px; padding: 18px 20px; border: 1px solid #C7D2FE; border-radius: var(--radius-lg); background: var(--primary-soft); color: var(--primary-dark); font-size: 14px; line-height: 1.7; }
+.physics-formulas { margin-bottom: 23px; }
+.physics-formulas h3, .physics-solved-example h3 { margin: 0 0 12px; color: var(--text); font-size: 16px; }
+.physics-formula-card { overflow: hidden; margin-bottom: 11px; border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--card); }
+.physics-formula-card header { display: flex; min-height: 40px; align-items: center; justify-content: space-between; gap: 16px; padding: 9px 15px; background: #0F172A; color: #E2E8F0; font-size: 12px; }
+.physics-formula-card code { color: #06B6D4; font-family: var(--font-mono); font-size: 16px; font-weight: 700; text-align: right; }
+.physics-formula-card p { margin: 0; padding: 12px 15px; color: var(--muted); font-size: 13px; line-height: 1.55; }
+.physics-solved-example { margin: 0 0 20px; }
+.physics-solved-example pre { margin: 0; padding: 19px; overflow-x: auto; border: 1px solid var(--border); border-radius: var(--radius-lg); background: var(--card); color: var(--text); font: 13px/1.8 var(--font-mono); white-space: pre-wrap; }
+.physics-topic-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 20px; }
+.physics-topic-actions form { display: flex; }
+.physics-topic-actions .btn { display: inline-flex; width: 100%; min-height: 46px; align-items: center; justify-content: center; gap: 8px; border: 0; border-radius: 999px; color: #fff; font: inherit; font-size: 13px; font-weight: 650; text-decoration: none; cursor: pointer; }
+.btn-simulator { background: linear-gradient(110deg, #06B6D4, #0891B2); }
+.btn-simulator:disabled { opacity: .65; cursor: not-allowed; }
+.btn-topic-complete { background: linear-gradient(110deg, #10B981, #059669); }
+.btn-topic-complete:disabled { opacity: .8; cursor: default; }
+[data-theme="dark"] .physics-intro { border-color: #4338CA; background: #24205A; color: #C7D2FE; }
+[data-theme="dark"] .physics-completed-chip { background: #064E3B; color: #A7F3D0; }
+
+@media (max-width: 980px) {
+  .physics-topic-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 620px) {
+  .physics-topic-grid { grid-template-columns: 1fr; }
+  .physics-topic-content { padding: 0 2px; }
+  .physics-topic-title-row h2 { font-size: 21px; }
+  .physics-formula-card header { align-items: flex-start; flex-direction: column; gap: 5px; }
+  .physics-formula-card code { text-align: left; }
+  .physics-topic-actions { grid-template-columns: 1fr; }
+}

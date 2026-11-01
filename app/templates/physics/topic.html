@@ -1,0 +1,59 @@
+{% extends "layouts/app_base.html" %}
+{% from "components/macros.html" import icon %}
+
+{% block title %}{{ topico.title }} - Física{% endblock %}
+{% block page_title %}Conteúdo Teórico{% endblock %}
+
+{% block content %}
+<article class="physics-topic-content animate-fadeIn">
+  <a class="physics-back-link" href="{{ url_for('fisica') }}">{{ icon('chevron-right', 15) }} Voltar aos tópicos</a>
+
+  <header class="physics-topic-title-row">
+    <span class="physics-topic-emoji" aria-hidden="true">{{ topico.emoji or '⚛️' }}</span>
+    <div>
+      <h2>{{ topico.title }}</h2>
+      <p>{{ topico.unit.name }} · Conteúdo teórico</p>
+    </div>
+  </header>
+
+  <div class="physics-intro">{{ topico.content or topico.summary }}</div>
+
+  {% if topico.formulas.count() %}
+  <section class="physics-formulas">
+    <h3>Fórmulas principais</h3>
+    {% for formula in topico.formulas.all() %}
+    <article class="physics-formula-card">
+      <header><span>{{ formula.name }}</span><code>{{ formula.expression }}</code></header>
+      {% if formula.explanation %}<p>{{ formula.explanation }}</p>{% endif %}
+    </article>
+    {% endfor %}
+  </section>
+  {% endif %}
+
+  {% if topico.solved_example %}
+  <section class="physics-solved-example">
+    <h3>Exemplo resolvido</h3>
+    <pre>{{ topico.solved_example }}</pre>
+  </section>
+  {% endif %}
+
+  <div class="physics-topic-actions">
+    {% if topico.simulator_url %}
+      <a class="btn btn-simulator" href="{{ topico.simulator_url }}">{{ icon('atom', 17) }} Simulador de {{ topico.title }}</a>
+    {% else %}
+      <button class="btn btn-simulator" type="button" disabled title="Este simulador ainda não está disponível">{{ icon('atom', 17) }} Simulador em preparação</button>
+    {% endif %}
+
+    {% if pode_concluir %}
+      {% if concluido %}
+        <button class="btn btn-topic-complete" type="button" disabled>{{ icon('check-circle', 17) }} Tópico concluído</button>
+      {% else %}
+        <form method="POST" action="{{ url_for('concluir_topico_fisica', slug=topico.slug) }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <button class="btn btn-topic-complete" type="submit">{{ icon('check-circle', 17) }} Marcar como concluído</button>
+        </form>
+      {% endif %}
+    {% endif %}
+  </div>
+</article>
+{% endblock %}

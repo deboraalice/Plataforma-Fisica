@@ -1,0 +1,46 @@
+{% extends "layouts/app_base.html" %}
+{% from "components/macros.html" import icon, field %}
+
+{% block title %}Turmas - FísicaFlow{% endblock %}
+{% block page_title %}Turmas{% endblock %}
+
+{% block content %}
+<div class="animate-fadeIn">
+  <div class="page-header">
+    <div>
+      <h2 class="page-title">Minhas turmas</h2>
+      <p class="page-sub">Crie turmas e compartilhe o código de acesso com seus alunos.</p>
+    </div>
+  </div>
+
+  <section class="card" style="padding: 24px; margin-bottom: 24px;">
+    <h3 style="margin-bottom: 16px;">Criar turma</h3>
+    <form method="POST" class="form" novalidate>
+      {{ formulario.hidden_tag() }}
+      {{ field(formulario.nome, 'clipboard-list', placeholder='Ex.: Física 2º ano A') }}
+      <button type="submit" class="btn btn-primary">{{ icon('plus', 16) }} Criar turma</button>
+    </form>
+  </section>
+
+  <section aria-label="Turmas cadastradas">
+    {% if turmas %}
+      <div class="task-list">
+        {% for turma in turmas %}
+        <a class="card" href="{{ url_for('detalhe_turma', team_id=turma.id) }}" style="display:block; padding:18px; text-decoration:none;">
+          <strong>{{ turma.nome }}</strong>
+          <span style="float:right; color:var(--subtle);">
+            {% if turma.archived_at %}Arquivada{% else %}{{ turma.students.count() }} aluno{{ '' if turma.students.count() == 1 else 's' }}{% endif %}
+          </span>
+        </a>
+        {% endfor %}
+      </div>
+    {% else %}
+      <div class="empty">
+        {{ icon('clipboard-list', 48) }}
+        <h3>Você ainda não tem turmas</h3>
+        <p>Crie uma turma para começar a organizar seus alunos.</p>
+      </div>
+    {% endif %}
+  </section>
+</div>
+{% endblock %}

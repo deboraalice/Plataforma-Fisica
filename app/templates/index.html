@@ -32,7 +32,6 @@
     <small>{{ d.metas.prazo }}</small>
   </article>
 
-  {# PROVISÓRIO: trocar por dados reais quando a tela de Física existir #}
   <article class="card dash-stat">
     <header><span>Tópicos concluídos</span><span class="dash-stat-icon is-violet">{{ icon('atom', 16) }}</span></header>
     <strong>{{ d.topicos.concluidos }} / {{ d.topicos.total }}</strong>
@@ -105,11 +104,10 @@
     {% endif %}
   </article>
 
-  {# PROVISÓRIO: progresso fixo até a tela de Física existir #}
   <article class="card dash-panel">
     <header class="dash-panel-head">
       <h3>Física em andamento</h3>
-      <span class="dash-link is-soon">Ver tópicos {{ icon('chevron-right', 14) }}</span>
+      <a class="dash-link" href="{{ url_for('fisica') }}">Ver tópicos {{ icon('chevron-right', 14) }}</a>
     </header>
 
     <ul class="dash-progress">

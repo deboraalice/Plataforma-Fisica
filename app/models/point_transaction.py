@@ -17,6 +17,7 @@ class PointTransaction(db.Model):
 
     # motivos (novos motivos entram aqui: simulado, login semanal...)
     POMODORO = "pomodoro"
+    QUIZ_FIRST = "quiz_first"
 
     id = db.Column(db.Integer, primary_key=True)
     amount = db.Column(db.Integer, nullable=False)

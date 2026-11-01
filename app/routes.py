@@ -8,12 +8,15 @@ from app.forms.task_form import TaskForm
 from app.forms.goal_form import GoalForm
 from app.forms.schedule_form import ScheduleForm
 from app.forms.pomodoro_form import PomodoroForm
-from app.decorators import api_student_required, student_required
+from app.forms.team_form import ActionForm, TeamForm, TeamJoinForm
+from app.decorators import api_student_required, professor_required, student_required
 from app.models.task import Task
 from app.models.goal import Goal
 from app.models.schedule_item import ScheduleItem
 from app.models.student import Student
 from app.models.pomodoro_session import PomodoroSession
+from app.models.team import TeamMembership
+from app.models.physics import Quiz, QuizQuestion, PhysicsTopic
 from app.services.TaskService import TaskService
 from app.services.GoalService import GoalService
 from app.services.ScheduleService import ScheduleService
@@ -23,6 +26,10 @@ from app.services.StudentService import StudentService
 from app.services.ProfessorService import ProfessorService
 from app.services.AuthService import AuthService, SuapAuthError
 from app.services.DashboardService import DashboardService
+from app.services.TeamService import TeamService
+from app.services.QuizService import QuizService, QuizError
+from app.services.PhysicsService import PhysicsService
+from app.timeutils import para_local
 
 @app.route("/")
 def index():
@@ -136,11 +143,218 @@ def cadastrar_student():
         flash(f"Cadastro de {papel} concluído! Bem-vindo(a), {usuario.name}.", "success")
         return redirect(url_for("index"))
  
+    return render_template("student/signin.html", formulario=formulario)
+
+
+# ---------------------------------------------------------------------------
+# Turmas: gestão do professor, entrada do aluno e histórico de vínculos
+# ---------------------------------------------------------------------------
+
+@app.route("/turmas", methods=["GET", "POST"])
+@professor_required
+def turmas():
+    formulario = TeamForm()
+    if formulario.validate_on_submit():
+        team = TeamService.criar(current_user.id, formulario.nome.data)
+        flash("Turma criada. Compartilhe o código com seus alunos.", "success")
+        return redirect(url_for("detalhe_turma", team_id=team.id))
+
     return render_template(
-        "student/signin.html",
+        "teams/index.html",
         formulario=formulario,
-        professor_signup_enabled=bool(app.config.get("PROFESSOR_SIGNUP_CODE")),
+        turmas=TeamService.listar_do_professor(current_user.id),
     )
+
+
+@app.route("/turmas/<int:team_id>", methods=["GET", "POST"])
+@professor_required
+def detalhe_turma(team_id):
+    team = TeamService.buscar_do_professor(team_id, current_user.id)
+    if team is None:
+        flash("Turma não encontrada.", "warning")
+        return redirect(url_for("turmas"))
+
+    formulario = TeamForm(obj=team)
+    if request.method == "POST":
+        if team.archived_at is not None:
+            flash("Turmas arquivadas não podem ser alteradas.", "warning")
+            return redirect(url_for("detalhe_turma", team_id=team.id))
+        if formulario.validate_on_submit():
+            TeamService.renomear(team, formulario.nome.data)
+            flash("Nome da turma atualizado.", "success")
+            return redirect(url_for("detalhe_turma", team_id=team.id))
+
+    alunos = team.students.order_by(Student.name.asc()).all()
+    vinculos = TeamMembership.query.filter_by(team_id=team.id, left_at=None).all()
+    vinculo_por_aluno = {v.student_id: v for v in vinculos}
+    return render_template(
+        "teams/detail.html",
+        turma=team,
+        formulario=formulario,
+        formulario_acao=ActionForm(),
+        alunos=alunos,
+        vinculo_por_aluno=vinculo_por_aluno,
+        para_local=para_local,
+    )
+
+
+@app.route("/turmas/<int:team_id>/codigo/renovar", methods=["POST"])
+@professor_required
+def renovar_codigo_turma(team_id):
+    team = TeamService.buscar_do_professor(team_id, current_user.id)
+    formulario = ActionForm()
+    if team is None:
+        flash("Turma não encontrada.", "warning")
+    elif formulario.validate_on_submit():
+        TeamService.renovar_codigo(team)
+        flash("Novo código gerado. O código anterior deixou de funcionar.", "success")
+    return redirect(url_for("detalhe_turma", team_id=team_id))
+
+
+@app.route("/turmas/<int:team_id>/codigo/desativar", methods=["POST"])
+@professor_required
+def desativar_codigo_turma(team_id):
+    team = TeamService.buscar_do_professor(team_id, current_user.id)
+    formulario = ActionForm()
+    if team is None:
+        flash("Turma não encontrada.", "warning")
+    elif formulario.validate_on_submit():
+        TeamService.desativar_codigo(team)
+        flash("Código desativado. Alunos não poderão entrar com ele.", "success")
+    return redirect(url_for("detalhe_turma", team_id=team_id))
+
+
+@app.route("/turmas/<int:team_id>/arquivar", methods=["POST"])
+@professor_required
+def arquivar_turma(team_id):
+    team = TeamService.buscar_do_professor(team_id, current_user.id)
+    formulario = ActionForm()
+    if team is None:
+        flash("Turma não encontrada.", "warning")
+    elif formulario.validate_on_submit():
+        TeamService.arquivar(team)
+        flash("Turma arquivada. O histórico foi preservado e os alunos ficaram sem turma.", "success")
+        return redirect(url_for("turmas"))
+    return redirect(url_for("detalhe_turma", team_id=team_id))
+
+
+@app.route("/turmas/<int:team_id>/alunos/<int:student_id>/remover", methods=["POST"])
+@professor_required
+def remover_aluno_turma(team_id, student_id):
+    team = TeamService.buscar_do_professor(team_id, current_user.id)
+    formulario = ActionForm()
+    student = StudentService.buscar_por_id(student_id)
+    if team is None or student is None:
+        flash("Turma ou aluno não encontrado.", "warning")
+    elif formulario.validate_on_submit() and TeamService.remover_aluno(team, student):
+        flash("Aluno removido da turma. O período de vínculo foi registrado.", "success")
+    return redirect(url_for("detalhe_turma", team_id=team_id))
+
+
+def _pagina_configuracoes_aluno(formulario=None, preview_team=None):
+    return render_template(
+        "settings/index.html",
+        formulario=formulario or TeamJoinForm(),
+        formulario_sair=ActionForm(),
+        turma_atual=current_user.team,
+        preview_team=preview_team,
+        historico_turmas=TeamService.historico_do_aluno(current_user.id),
+        para_local=para_local,
+    )
+
+
+@app.route("/configuracoes")
+@student_required
+def configuracoes_aluno():
+    return _pagina_configuracoes_aluno()
+
+
+@app.route("/configuracoes/turma/entrar", methods=["POST"])
+@student_required
+def entrar_em_turma():
+    formulario = TeamJoinForm()
+    if not formulario.validate_on_submit():
+        return _pagina_configuracoes_aluno(formulario)
+    if current_user.team_id is not None:
+        flash("Saia da turma atual antes de entrar em outra.", "warning")
+        return redirect(url_for("configuracoes_aluno"))
+
+    team = TeamService.buscar_por_codigo(formulario.code.data)
+    if team is None:
+        formulario.code.errors.append("Código inválido, desativado ou de uma turma arquivada.")
+        return _pagina_configuracoes_aluno(formulario)
+
+    if request.form.get("stage") == "confirmar":
+        try:
+            TeamService.entrar(current_user._get_current_object(), team)
+        except ValueError as erro:
+            flash(str(erro), "warning")
+            return redirect(url_for("configuracoes_aluno"))
+        flash(f"Você entrou na turma {team.nome}, de {team.professor.name}.", "success")
+        return redirect(url_for("configuracoes_aluno"))
+
+    formulario.code.data = team.access_code
+    return _pagina_configuracoes_aluno(formulario, preview_team=team)
+
+
+@app.route("/configuracoes/turma/sair", methods=["POST"])
+@student_required
+def sair_de_turma():
+    formulario = ActionForm()
+    if formulario.validate_on_submit() and TeamService.sair(current_user._get_current_object()):
+        flash("Você saiu da turma. Seu histórico de vínculo foi preservado.", "success")
+    return redirect(url_for("configuracoes_aluno"))
+
+
+# ---------------------------------------------------------------------------
+# Física: catálogo de tópicos e conteúdo teórico para alunos e professores
+# ---------------------------------------------------------------------------
+
+@app.route("/fisica")
+@login_required
+def fisica():
+    usuario = current_user._get_current_object()
+    student_id = usuario.id if isinstance(usuario, Student) else None
+    topicos = PhysicsService.listar_topicos(student_id)
+    concluidos = sum(1 for item in topicos if item["concluido"])
+    return render_template(
+        "physics/index.html",
+        topicos=topicos,
+        total_concluidos=concluidos,
+        total_topicos=len(topicos),
+    )
+
+
+@app.route("/fisica/topicos/<slug>")
+@login_required
+def topico_fisica(slug):
+    usuario = current_user._get_current_object()
+    student_id = usuario.id if isinstance(usuario, Student) else None
+    topico, concluido = PhysicsService.buscar_topico(slug, student_id)
+    if topico is None:
+        flash("Tópico não encontrado.", "warning")
+        return redirect(url_for("fisica"))
+    return render_template(
+        "physics/topic.html",
+        topico=topico,
+        concluido=concluido,
+        pode_concluir=isinstance(usuario, Student),
+    )
+
+
+@app.route("/fisica/topicos/<slug>/concluir", methods=["POST"])
+@student_required
+def concluir_topico_fisica(slug):
+    topico = PhysicsTopic.query.filter_by(slug=slug).first()
+    if topico is None:
+        flash("Tópico não encontrado.", "warning")
+        return redirect(url_for("fisica"))
+    novo = PhysicsService.concluir_topico(current_user.id, topico.id)
+    flash(
+        "Tópico marcado como concluído!" if novo else "Este tópico já estava concluído.",
+        "success" if novo else "info",
+    )
+    return redirect(url_for("topico_fisica", slug=slug))
 
 
 # ---------------------------------------------------------------------------
@@ -509,3 +723,74 @@ def api_cancelar_pomodoro(sessao_id):
 
     PomodoroService.cancelar(sessao)
     return jsonify(ok=True)
+
+
+# ---------------------------------------------------------------------------
+# Quizzes: API para servir questões, registrar tentativas e pontuar a primeira
+# resposta de cada aluno para cada questão.
+# ---------------------------------------------------------------------------
+
+@app.route("/api/quizzes/<int:quiz_id>")
+@api_student_required
+def api_obter_quiz(quiz_id):
+    quiz = Quiz.query.filter_by(id=quiz_id, is_active=True).first()
+    if quiz is None:
+        return jsonify(ok=False, error="Quiz não encontrado."), 404
+
+    questoes = QuizQuestion.query.filter_by(quiz_id=quiz.id).order_by(QuizQuestion.position).all()
+    return jsonify(
+        ok=True,
+        quiz={
+            "id": quiz.id,
+            "title": quiz.title,
+            "points_per_correct": quiz.points_per_correct,
+            "topic": {
+                "id": quiz.topic.id,
+                "title": quiz.topic.title,
+                "unit": {"id": quiz.topic.unit.id, "name": quiz.topic.unit.name},
+            },
+            "questions": [
+                {
+                    "id": question.id,
+                    "prompt": question.prompt,
+                    "position": question.position,
+                    "options": [
+                        {"id": option.id, "text": option.text, "position": option.position}
+                        for option in question.options.all()
+                    ],
+                }
+                for question in questoes
+            ],
+        },
+    )
+
+
+@app.route("/api/quizzes/<int:quiz_id>/tentativas", methods=["POST"])
+@api_student_required
+def api_iniciar_tentativa_quiz(quiz_id):
+    if not isinstance(request.get_json(silent=True), dict):
+        return jsonify(ok=False, error="Envie os dados em formato JSON."), 400
+    try:
+        tentativa = QuizService.iniciar_tentativa(current_user.id, quiz_id)
+    except QuizError as erro:
+        return jsonify(ok=False, error=str(erro)), 404
+    return jsonify(ok=True, attempt_id=tentativa.id, started_at=tentativa.started_at), 201
+
+
+@app.route("/api/quizzes/tentativas/<int:attempt_id>/respostas", methods=["POST"])
+@api_student_required
+def api_enviar_respostas_quiz(attempt_id):
+    dados = request.get_json(silent=True)
+    if not isinstance(dados, dict) or not isinstance(dados.get("answers"), dict):
+        return jsonify(ok=False, error="Envie as respostas em um objeto JSON `answers`."), 400
+    try:
+        resultado = QuizService.enviar_respostas(
+            attempt_id=attempt_id,
+            student_id=current_user.id,
+            respostas=dados["answers"],
+        )
+    except QuizError as erro:
+        return jsonify(ok=False, error=str(erro)), 422
+
+    resultado["points_total"] = PointsService.total(current_user.id)
+    return jsonify(ok=True, result=resultado)

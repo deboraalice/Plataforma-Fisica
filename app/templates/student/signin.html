@@ -17,15 +17,7 @@
 <form method="POST" action="{{ url_for('cadastrar_student') }}" class="form" novalidate data-loading-form>
   {{ formulario.hidden_tag() }}
 
-  {{ field(formulario.profile_type, 'user', extra={'data-profile-type': 'true'}) }}
-  {% if professor_signup_enabled %}
-  <div data-professor-code hidden>
-    {{ field(formulario.professor_code, 'lock', placeholder='Código fornecido pela equipe', autocomplete='off', type='password') }}
-    <p class="hint hint-info">O código provisório confirma a autorização para criar um perfil de professor.</p>
-  </div>
-  {% else %}
-  <p class="hint hint-info">O cadastro de professor será liberado quando o código provisório for configurado.</p>
-  {% endif %}
+  {{ field(formulario.profile_type, 'user') }}
   {{ field(formulario.name, 'user', placeholder='Seu nome completo', autocomplete='name') }}
 
   <div>

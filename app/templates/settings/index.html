@@ -1,0 +1,73 @@
+{% extends "layouts/app_base.html" %}
+{% from "components/macros.html" import icon, field %}
+
+{% block title %}Configurações - FísicaFlow{% endblock %}
+{% block page_title %}Configurações{% endblock %}
+
+{% block content %}
+<div class="animate-fadeIn">
+  <div class="page-header">
+    <div>
+      <h2 class="page-title">Configurações</h2>
+      <p class="page-sub">Gerencie seu vínculo com uma turma.</p>
+    </div>
+  </div>
+
+  {% if turma_atual %}
+  <section class="card" style="padding:24px; margin-bottom:24px;">
+    <h3 style="margin-bottom:8px;">Sua turma</h3>
+    <p style="font-size:20px; font-weight:700;">{{ turma_atual.nome }}</p>
+    <p class="page-sub">Professor(a): {{ turma_atual.professor.name }}</p>
+    <div class="hint hint-info" style="margin:16px 0;">
+      {{ icon('info', 16) }}
+      <span>Ao participar da turma, seu professor poderá acompanhar sua atividade e seu desempenho na plataforma.</span>
+    </div>
+    <form method="POST" action="{{ url_for('sair_de_turma') }}" onsubmit="return confirm('Sair desta turma? Seu histórico de vínculo será preservado.');">
+      {{ formulario_sair.hidden_tag() }}
+      <button type="submit" class="btn btn-soft">Sair da turma</button>
+    </form>
+  </section>
+  {% else %}
+  <section class="card" style="padding:24px; margin-bottom:24px;">
+    <h3 style="margin-bottom:8px;">Entrar em uma turma</h3>
+    <p class="page-sub" style="margin-bottom:16px;">Digite o código recebido do professor. Você poderá conferir a turma antes de confirmar.</p>
+    <form method="POST" action="{{ url_for('entrar_em_turma') }}" class="form" novalidate>
+      {{ formulario.hidden_tag() }}
+      {{ field(formulario.code, 'clipboard-list', placeholder='Ex.: A1B2C3', extra={'autocapitalize': 'characters', 'maxlength': '6'}) }}
+      <button type="submit" class="btn btn-primary" name="stage" value="preview">Verificar código</button>
+    </form>
+
+    {% if preview_team %}
+    <div class="hint hint-info" style="margin-top:20px;">
+      {{ icon('info', 16) }}
+      <span>Você está prestes a entrar em <strong>{{ preview_team.nome }}</strong>, da professora ou professor <strong>{{ preview_team.professor.name }}</strong>. Ao entrar, essa pessoa poderá acompanhar sua atividade na plataforma.</span>
+    </div>
+    <form method="POST" action="{{ url_for('entrar_em_turma') }}" style="margin-top:16px;">
+      {{ formulario.hidden_tag() }}
+      <input type="hidden" name="code" value="{{ preview_team.access_code }}">
+      <button type="submit" class="btn btn-primary" name="stage" value="confirmar">Confirmar entrada</button>
+    </form>
+    {% endif %}
+  </section>
+  {% endif %}
+
+  <section class="card" style="padding:24px;">
+    <h3 style="margin-bottom:16px;">Histórico de turmas</h3>
+    {% if historico_turmas %}
+      <div class="task-list">
+        {% for vinculo in historico_turmas %}
+        <div class="card" style="padding:16px;">
+          <strong>{{ vinculo.team.nome }}</strong>
+          <div class="page-sub">
+            {% if vinculo.joined_at %}Desde {{ para_local(vinculo.joined_at).strftime('%d/%m/%Y') }}{% else %}Vínculo anterior ao histórico disponível{% endif %}
+            {% if vinculo.left_at %} · Até {{ para_local(vinculo.left_at).strftime('%d/%m/%Y') }}{% else %} · Atual{% endif %}
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+    {% else %}
+      <p class="page-sub">Seu histórico aparecerá aqui quando você entrar em uma turma.</p>
+    {% endif %}
+  </section>
+</div>
+{% endblock %}
