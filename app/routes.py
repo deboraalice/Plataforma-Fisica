@@ -8,7 +8,7 @@ from app.forms.task_form import TaskForm
 from app.forms.goal_form import GoalForm
 from app.forms.schedule_form import ScheduleForm
 from app.forms.pomodoro_form import PomodoroForm
-from app.forms.team_form import ActionForm, TeamForm, TeamJoinForm
+from app.forms.team_form import ActionForm, TeamForm, TeamJoinForm, TeamResourceForm
 from app.decorators import api_student_required, professor_required, student_required
 from app.models.task import Task
 from app.models.goal import Goal
@@ -29,6 +29,7 @@ from app.services.DashboardService import DashboardService
 from app.services.TeamService import TeamService
 from app.services.QuizService import QuizService, QuizError
 from app.services.PhysicsService import PhysicsService
+from app.services.PhysicsResourceService import PhysicsResourceService, ResourceError
 from app.timeutils import para_local
 
 @app.route("/")
@@ -251,6 +252,108 @@ def remover_aluno_turma(team_id, student_id):
     return redirect(url_for("detalhe_turma", team_id=team_id))
 
 
+def _opcoes_de_topicos(formulario):
+    itens = PhysicsService.listar_topicos()
+    formulario.topic_id.choices = [(0, "Selecione um tópico")] + [
+        (item["topico"].id, f"{item['topico'].unit.name} · {item['topico'].title}")
+        for item in itens
+    ]
+
+
+def _pagina_materiais_turma(team, formulario, edit_resource=None):
+    _opcoes_de_topicos(formulario)
+    return render_template(
+        "teams/materials.html",
+        turma=team,
+        formulario=formulario,
+        material_em_edicao=edit_resource,
+        formulario_acao=ActionForm(),
+        materiais=PhysicsResourceService.listar_da_turma(team.id, current_user.id),
+    )
+
+
+@app.route("/turmas/<int:team_id>/materiais", methods=["GET", "POST"])
+@professor_required
+def materiais_da_turma(team_id):
+    team = TeamService.buscar_do_professor(team_id, current_user.id)
+    if team is None or team.archived_at is not None:
+        flash("Turma não encontrada ou arquivada.", "warning")
+        return redirect(url_for("turmas"))
+
+    formulario = TeamResourceForm()
+    _opcoes_de_topicos(formulario)
+    if formulario.validate_on_submit():
+        try:
+            PhysicsResourceService.salvar_material_de_turma(
+                team=team,
+                professor_id=current_user.id,
+                topic_id=formulario.topic_id.data,
+                title=formulario.title.data,
+                description=formulario.description.data,
+                url=formulario.url.data,
+            )
+        except ResourceError as erro:
+            formulario.url.errors.append(str(erro))
+        else:
+            flash("Material adicionado à turma.", "success")
+            return redirect(url_for("materiais_da_turma", team_id=team.id))
+
+    return _pagina_materiais_turma(team, formulario)
+
+
+@app.route("/turmas/<int:team_id>/materiais/<int:resource_id>/editar", methods=["GET", "POST"])
+@professor_required
+def editar_material_turma(team_id, resource_id):
+    team = TeamService.buscar_do_professor(team_id, current_user.id)
+    resource = PhysicsResourceService.buscar_material_proprio(
+        resource_id,
+        team_id,
+        current_user.id,
+    )
+    if team is None or team.archived_at is not None or resource is None:
+        flash("Material não encontrado ou indisponível para edição.", "warning")
+        return redirect(url_for("turmas"))
+
+    formulario = TeamResourceForm(obj=resource)
+    _opcoes_de_topicos(formulario)
+    if formulario.validate_on_submit():
+        try:
+            PhysicsResourceService.salvar_material_de_turma(
+                team=team,
+                professor_id=current_user.id,
+                topic_id=formulario.topic_id.data,
+                title=formulario.title.data,
+                description=formulario.description.data,
+                url=formulario.url.data,
+                resource=resource,
+            )
+        except ResourceError as erro:
+            formulario.url.errors.append(str(erro))
+        else:
+            flash("Material atualizado.", "success")
+            return redirect(url_for("materiais_da_turma", team_id=team.id))
+
+    return _pagina_materiais_turma(team, formulario, edit_resource=resource)
+
+
+@app.route("/turmas/<int:team_id>/materiais/<int:resource_id>/remover", methods=["POST"])
+@professor_required
+def remover_material_turma(team_id, resource_id):
+    team = TeamService.buscar_do_professor(team_id, current_user.id)
+    resource = PhysicsResourceService.buscar_material_proprio(
+        resource_id,
+        team_id,
+        current_user.id,
+    )
+    formulario = ActionForm()
+    if team is None or team.archived_at is not None or resource is None:
+        flash("Material não encontrado ou indisponível para remoção.", "warning")
+    elif formulario.validate_on_submit():
+        PhysicsResourceService.remover_material(resource)
+        flash("Material removido da turma.", "success")
+    return redirect(url_for("materiais_da_turma", team_id=team_id))
+
+
 def _pagina_configuracoes_aluno(formulario=None, preview_team=None):
     return render_template(
         "settings/index.html",
@@ -334,11 +437,21 @@ def topico_fisica(slug):
     if topico is None:
         flash("Tópico não encontrado.", "warning")
         return redirect(url_for("fisica"))
+    recursos = (
+        PhysicsResourceService.recursos_visiveis_para_aluno(
+            topico.id,
+            usuario.team_id,
+        )
+        if isinstance(usuario, Student)
+        else PhysicsResourceService.recursos_publicos(topico.id)
+    )
     return render_template(
         "physics/topic.html",
         topico=topico,
         concluido=concluido,
         pode_concluir=isinstance(usuario, Student),
+        recursos_base=[resource for resource in recursos if resource.team_id is None],
+        materiais_turma=[resource for resource in recursos if resource.team_id is not None],
     )
 
 

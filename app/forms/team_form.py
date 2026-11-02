@@ -1,5 +1,5 @@
 from flask_wtf import FlaskForm
-from wtforms import StringField, SubmitField
+from wtforms import SelectField, StringField, SubmitField, TextAreaField
 from wtforms.validators import DataRequired, Length, ValidationError
 
 
@@ -31,3 +31,31 @@ class TeamJoinForm(FlaskForm):
 
 class ActionForm(FlaskForm):
     """Formulário sem campos para ações POST protegidas por CSRF."""
+
+
+class TeamResourceForm(FlaskForm):
+    topic_id = SelectField(
+        "Tópico",
+        coerce=int,
+        choices=[(0, "Selecione um tópico")],
+        validators=[DataRequired(message="Selecione um tópico.")],
+    )
+    title = StringField(
+        "Título do material",
+        validators=[
+            DataRequired(message="Informe o título."),
+            Length(max=160, message="O título pode ter até 160 caracteres."),
+        ],
+    )
+    description = TextAreaField(
+        "Descrição (opcional)",
+        validators=[Length(max=1000, message="A descrição pode ter até 1.000 caracteres.")],
+    )
+    url = StringField(
+        "Link do material",
+        validators=[
+            DataRequired(message="Informe um link."),
+            Length(max=1024, message="O link é muito longo."),
+        ],
+    )
+    submit = SubmitField("Salvar material")

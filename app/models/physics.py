@@ -1,5 +1,6 @@
 from app import db
 from app.timeutils import agora_utc
+from sqlalchemy import CheckConstraint
 
 
 class PhysicsUnit(db.Model):
@@ -39,6 +40,13 @@ class PhysicsTopic(db.Model):
         lazy="dynamic",
         cascade="all, delete-orphan",
         order_by="PhysicsFormula.position",
+    )
+
+    resources = db.relationship(
+        "PhysicsResource",
+        backref="topic",
+        lazy="dynamic",
+        cascade="all, delete-orphan",
     )
 
     quizzes = db.relationship(
@@ -91,6 +99,40 @@ class TopicCompletion(db.Model):
 
     student = db.relationship("Student")
     topic = db.relationship("PhysicsTopic")
+
+
+class PhysicsResource(db.Model):
+    """Recurso geral da plataforma ou material suplementar de uma turma."""
+
+    __tablename__ = "physics_resource"
+    __table_args__ = (
+        CheckConstraint(
+            "(team_id IS NULL AND professor_id IS NULL) OR "
+            "(team_id IS NOT NULL AND professor_id IS NOT NULL)",
+            name="ck_physics_resource_scope",
+        ),
+    )
+
+    id = db.Column(db.Integer, primary_key=True)
+    topic_id = db.Column(db.Integer, db.ForeignKey("physics_topic.id"), nullable=False, index=True)
+    team_id = db.Column(db.Integer, db.ForeignKey("team.id"), nullable=True, index=True)
+    professor_id = db.Column(db.Integer, db.ForeignKey("professor.id"), nullable=True, index=True)
+    title = db.Column(db.String(160), nullable=False)
+    description = db.Column(db.Text, nullable=True)
+    url = db.Column(db.String(1024), nullable=False)
+    youtube_video_id = db.Column(db.String(11), nullable=True)
+    is_active = db.Column(db.Boolean, nullable=False, default=True)
+    created_at = db.Column(db.DateTime, nullable=False, default=agora_utc)
+    updated_at = db.Column(db.DateTime, nullable=False, default=agora_utc, onupdate=agora_utc)
+
+    team = db.relationship("Team", backref=db.backref("physics_resources", lazy="dynamic"))
+    professor = db.relationship("Professor", backref=db.backref("physics_resources", lazy="dynamic"))
+
+    @property
+    def youtube_embed_url(self):
+        if not self.youtube_video_id:
+            return None
+        return f"https://www.youtube.com/embed/{self.youtube_video_id}"
 
 
 class QuizQuestion(db.Model):

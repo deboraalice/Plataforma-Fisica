@@ -37,6 +37,47 @@
   </section>
   {% endif %}
 
+  {% if recursos_base %}
+  <section class="physics-resource-section">
+    <h3>Videoaulas e materiais da plataforma</h3>
+    {% for resource in recursos_base %}
+      <article class="physics-resource-card">
+        <h4>{{ resource.title }}</h4>
+        {% if resource.description %}<p>{{ resource.description }}</p>{% endif %}
+        {% if resource.youtube_video_id %}
+          <div class="physics-video-frame">
+            <iframe src="{{ resource.youtube_embed_url }}" title="{{ resource.title }}" loading="lazy" referrerpolicy="strict-origin-when-cross-origin" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
+          </div>
+          <a class="physics-resource-fallback" href="{{ resource.url }}" target="_blank" rel="noopener noreferrer">Se o player não abrir, assistir no YouTube.</a>
+        {% else %}
+          <a href="{{ resource.url }}" target="_blank" rel="noopener noreferrer">Abrir material {{ icon('chevron-right', 14) }}</a>
+        {% endif %}
+      </article>
+    {% endfor %}
+  </section>
+  {% endif %}
+
+  {% if materiais_turma %}
+  <section class="physics-resource-section">
+    <h3>Material do professor</h3>
+    {% for resource in materiais_turma %}
+      <article class="physics-resource-card">
+        <div class="physics-resource-byline">{{ resource.professor.name }} · {{ resource.team.nome }}</div>
+        <h4>{{ resource.title }}</h4>
+        {% if resource.description %}<p>{{ resource.description }}</p>{% endif %}
+        {% if resource.youtube_video_id %}
+          <div class="physics-video-frame">
+            <iframe src="{{ resource.youtube_embed_url }}" title="{{ resource.title }}" loading="lazy" referrerpolicy="strict-origin-when-cross-origin" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
+          </div>
+          <a class="physics-resource-fallback" href="{{ resource.url }}" target="_blank" rel="noopener noreferrer">Se o player não abrir, assistir no YouTube.</a>
+        {% else %}
+          <a href="{{ resource.url }}" target="_blank" rel="noopener noreferrer">Abrir material {{ icon('chevron-right', 14) }}</a>
+        {% endif %}
+      </article>
+    {% endfor %}
+  </section>
+  {% endif %}
+
   <div class="physics-topic-actions">
     {% if topico.simulator_url %}
       <a class="btn btn-simulator" href="{{ topico.simulator_url }}">{{ icon('atom', 17) }} Simulador de {{ topico.title }}</a>

@@ -5,6 +5,7 @@ from .physics import (
     PhysicsUnit,
     PhysicsTopic,
     PhysicsFormula,
+    PhysicsResource,
     TopicCompletion,
     Quiz,
     QuizQuestion,

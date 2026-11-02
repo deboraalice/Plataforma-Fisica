@@ -17,6 +17,9 @@
   {% if turma.archived_at %}
   <div class="hint hint-info">Esta turma foi arquivada. O histórico dos vínculos foi preservado.</div>
   {% else %}
+  <p style="margin:0 0 18px;">
+    <a class="btn btn-secondary" href="{{ url_for('materiais_da_turma', team_id=turma.id) }}">{{ icon('plus', 16) }} Gerenciar materiais complementares</a>
+  </p>
   <section class="card" style="padding:24px; margin-bottom:20px;">
     <h3 style="margin-bottom:8px;">Código de acesso</h3>
     {% if turma.access_code and turma.access_code_active %}

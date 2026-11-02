@@ -1,0 +1,68 @@
+{% extends "layouts/app_base.html" %}
+{% from "components/macros.html" import icon, field %}
+
+{% block title %}Materiais · {{ turma.nome }} - FísicaFlow{% endblock %}
+{% block page_title %}Materiais da turma{% endblock %}
+
+{% block content %}
+<div class="animate-fadeIn" style="max-width:900px; margin:0 auto;">
+  <a class="dash-link" href="{{ url_for('detalhe_turma', team_id=turma.id) }}">{{ icon('chevron-right', 14) }} Voltar para {{ turma.nome }}</a>
+  <div class="page-header" style="margin-top:14px;">
+    <div>
+      <h2 class="page-title">Materiais complementares</h2>
+      <p class="page-sub">Os materiais ficam associados ao tópico e só aparecem para alunos atualmente vinculados a esta turma.</p>
+    </div>
+  </div>
+
+  <section class="card" style="padding:24px; margin-bottom:24px;">
+    <h3 style="margin-bottom:16px;">{% if material_em_edicao %}Editar material{% else %}Adicionar material{% endif %}</h3>
+    <form method="POST" action="{% if material_em_edicao %}{{ url_for('editar_material_turma', team_id=turma.id, resource_id=material_em_edicao.id) }}{% else %}{{ url_for('materiais_da_turma', team_id=turma.id) }}{% endif %}" class="form" novalidate>
+      {{ formulario.hidden_tag() }}
+      {{ field(formulario.topic_id, 'atom') }}
+      {{ field(formulario.title, 'clipboard-list', placeholder='Ex.: Lista de exercícios de movimento') }}
+      {{ field(formulario.description, 'info', placeholder='Explique brevemente como o material ajuda no tópico') }}
+      {{ field(formulario.url, 'link', placeholder='https://...') }}
+      <p class="page-sub">Links do YouTube serão exibidos em um player incorporado. Outros links abrem em uma nova aba.</p>
+      <div style="display:flex; gap:10px; flex-wrap:wrap;">
+        <button type="submit" class="btn btn-primary">{{ icon('check-circle', 16) }} {{ 'Salvar alterações' if material_em_edicao else 'Adicionar material' }}</button>
+        {% if material_em_edicao %}<a class="btn btn-soft" href="{{ url_for('materiais_da_turma', team_id=turma.id) }}">Cancelar</a>{% endif %}
+      </div>
+    </form>
+  </section>
+
+  <section>
+    <h3 style="margin-bottom:14px;">Materiais desta turma</h3>
+    {% if materiais %}
+      <div class="task-list">
+        {% for material in materiais %}
+        <article class="card" style="padding:18px; opacity:{{ '0.65' if not material.is_active else '1' }};">
+          <div style="display:flex; align-items:flex-start; justify-content:space-between; gap:14px;">
+            <div>
+              <p class="page-sub" style="margin-bottom:5px;">{{ material.topic.unit.name }} · {{ material.topic.title }}{% if not material.is_active %} · Removido{% endif %}</p>
+              <h4 style="margin:0 0 6px; color:var(--text);">{{ material.title }}</h4>
+              {% if material.description %}<p class="page-sub">{{ material.description }}</p>{% endif %}
+              {% if material.youtube_video_id %}<span class="physics-resource-kind">Vídeo do YouTube</span>{% else %}<span class="physics-resource-kind">Link</span>{% endif %}
+            </div>
+            <div style="display:flex; gap:8px; flex-wrap:wrap; justify-content:flex-end;">
+              <a class="btn btn-soft" href="{{ url_for('editar_material_turma', team_id=turma.id, resource_id=material.id) }}">Editar</a>
+              {% if material.is_active %}
+              <form method="POST" action="{{ url_for('remover_material_turma', team_id=turma.id, resource_id=material.id) }}" onsubmit="return confirm('Remover este material da turma?');">
+                {{ formulario_acao.hidden_tag() }}
+                <button class="btn btn-soft" type="submit">Remover</button>
+              </form>
+              {% endif %}
+            </div>
+          </div>
+        </article>
+        {% endfor %}
+      </div>
+    {% else %}
+      <div class="empty">
+        {{ icon('clipboard-list', 40) }}
+        <h3>Nenhum material adicionado</h3>
+        <p>Adicione um vídeo ou link para complementar um tópico.</p>
+      </div>
+    {% endif %}
+  </section>
+</div>
+{% endblock %}
