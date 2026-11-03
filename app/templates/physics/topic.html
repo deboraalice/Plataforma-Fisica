@@ -79,22 +79,28 @@
   {% endif %}
 
   <div class="physics-topic-actions">
-    {% if topico.simulator_url %}
-      <a class="btn btn-simulator" href="{{ topico.simulator_url }}">{{ icon('atom', 17) }} Simulador de {{ topico.title }}</a>
-    {% else %}
-      <button class="btn btn-simulator" type="button" disabled title="Este simulador ainda não está disponível">{{ icon('atom', 17) }} Simulador em preparação</button>
-    {% endif %}
+    <a
+      class="btn btn-simulator"
+      href="{{ url_for('simulators.physics_simulator', slug=topico.slug) }}"
+    >
+      {{ icon('atom', 17) }} Simulador de {{ topico.title }}
+    </a>
 
     {% if pode_concluir %}
       {% if concluido %}
-        <button class="btn btn-topic-complete" type="button" disabled>{{ icon('check-circle', 17) }} Tópico concluído</button>
+        <button class="btn btn-topic-complete" type="button" disabled>
+          {{ icon('check-circle', 17) }} Tópico concluído
+        </button>
       {% else %}
         <form method="POST" action="{{ url_for('concluir_topico_fisica', slug=topico.slug) }}">
           <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-          <button class="btn btn-topic-complete" type="submit">{{ icon('check-circle', 17) }} Marcar como concluído</button>
+          <button class="btn btn-topic-complete" type="submit">
+            {{ icon('check-circle', 17) }} Marcar como concluído
+          </button>
         </form>
       {% endif %}
     {% endif %}
   </div>
 </article>
 {% endblock %}
+
