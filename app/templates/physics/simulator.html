@@ -1,0 +1,70 @@
+{% extends "layouts/app_base.html" %}
+{% from "components/macros.html" import icon %}
+
+{% block title %}Simulador de {{ topico.title }} - FísicaFlow{% endblock %}
+{% block page_title %}Laboratório virtual{% endblock %}
+
+{% block head %}
+  {{ super() }}
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/simulators.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="simulator-page animate-fadeIn" data-simulator="{{ topico.slug }}">
+  <a class="physics-back-link" href="{{ url_for('topico_fisica', slug=topico.slug) }}">
+    {{ icon('chevron-right', 15) }} Voltar para {{ topico.title }}
+  </a>
+
+  <header class="simulator-hero">
+    <div class="simulator-hero-copy">
+      <span class="simulator-eyebrow">{{ simulator.eyebrow }}</span>
+      <h2>{{ topico.emoji }} Simulador de {{ topico.title }}</h2>
+      <p>{{ simulator.description }}</p>
+    </div>
+    <span class="simulator-live"><i aria-hidden="true"></i> Experimento interativo</span>
+  </header>
+
+  <div class="simulator-layout">
+    <aside class="simulator-controls" aria-label="Controles do experimento">
+      <div class="simulator-section-heading">
+        <span>Variáveis</span>
+        <button class="simulator-reset" type="button" data-sim-reset>
+          {{ icon('rotate-ccw', 15) }} Restaurar
+        </button>
+      </div>
+      <div class="simulator-fields" data-sim-fields></div>
+      <button class="btn simulator-action" type="button" data-sim-action>
+        {{ icon('play', 17) }} <span data-sim-action-label>Simular</span>
+      </button>
+      <p class="simulator-tip" data-sim-tip></p>
+    </aside>
+
+    <section class="simulator-stage-card" aria-label="Visualização do experimento">
+      <div class="simulator-stage-head">
+        <div>
+          <span class="simulator-stage-label">Visualização em tempo real</span>
+          <strong data-sim-status>Pronto para experimentar</strong>
+        </div>
+        <span class="simulator-formula" data-sim-formula></span>
+      </div>
+      <div class="simulator-canvas-wrap">
+        <canvas class="simulator-canvas" data-sim-canvas role="img" aria-label="Representação visual do experimento"></canvas>
+      </div>
+      <div class="simulator-results" data-sim-results aria-live="polite"></div>
+    </section>
+  </div>
+
+  <section class="simulator-explanation">
+    <span class="simulator-explanation-icon">{{ icon('sparkles', 20) }}</span>
+    <div>
+      <h3>O que está acontecendo?</h3>
+      <p data-sim-explanation>Altere as variáveis para comparar os resultados do experimento.</p>
+    </div>
+  </section>
+</div>
+{% endblock %}
+
+{% block scripts %}
+  {{ super() }}
+  <script src="{{ url_for('static', filename='js/simulators.js') }}"></script>
+{% endblock %}

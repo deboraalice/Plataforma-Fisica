@@ -3,8 +3,8 @@ from flask_wtf import CSRFProtect
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager
 from sqlalchemy import inspect, text
-
 from config import Config
+
 
 app = Flask(__name__)
 app.config.from_object(Config)
@@ -36,7 +36,10 @@ def load_user(id_composto):
 
 from app import routes, models
 from app.services.PhysicsService import PhysicsService
+from app.simulators import simulators
 
+
+app.register_blueprint(simulators)
 
 def _upgrade_team_schema():
     """Adiciona campos novos de turma sem exigir apagar o banco existente."""
