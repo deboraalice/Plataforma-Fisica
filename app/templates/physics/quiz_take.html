@@ -25,8 +25,11 @@
         <article class="card" style="padding:20px;">
           <span class="physics-resource-kind">{{ 'Acertou' if item.acertou else 'Revise esta questão' }}</span>
           <h4 style="margin:8px 0 12px;">{{ loop.index }}. {{ item.questao.prompt }}</h4>
+          {% if item.questao.image_filename %}<img class="quiz-question-image" src="{{ url_for('imagem_questao', filename=item.questao.image_filename) }}" alt="Imagem da questão">{% endif %}
           <p><strong>Sua resposta:</strong> {{ item.marcada.text if item.marcada else 'Sem resposta' }}</p>
+          {% if item.marcada and item.marcada.image_filename %}<img class="quiz-question-image" src="{{ url_for('imagem_questao', filename=item.marcada.image_filename) }}" alt="Imagem da sua resposta">{% endif %}
           {% if not item.acertou and item.correta %}<p><strong>Resposta correta:</strong> {{ item.correta.text }}</p>{% endif %}
+          {% if not item.acertou and item.correta and item.correta.image_filename %}<img class="quiz-question-image" src="{{ url_for('imagem_questao', filename=item.correta.image_filename) }}" alt="Imagem da resposta correta">{% endif %}
           {% if item.explicacao %}<p class="page-sub">{{ item.explicacao }}</p>{% endif %}
         </article>
       {% endfor %}
@@ -37,12 +40,13 @@
       {% for questao in questoes %}
         <fieldset class="card" style="padding:20px;border:0;">
           <legend style="font-size:18px;font-weight:700;padding:0 0 12px;">{{ loop.index }}. {{ questao.prompt }}</legend>
+          {% if questao.image_filename %}<img class="quiz-question-image" src="{{ url_for('imagem_questao', filename=questao.image_filename) }}" alt="Imagem da questão">{% endif %}
           <div style="display:grid;gap:10px;">
             {% for alternativa in questao.options.all() %}
               <label class="card" style="padding:12px;display:flex;gap:10px;align-items:flex-start;cursor:pointer;">
                 <input type="radio" name="question_{{ questao.id }}" value="{{ alternativa.id }}" required
                   {% if respostas_marcadas.get(questao.id, '') == alternativa.id|string %}checked{% endif %}>
-                <span>{{ alternativa.text }}</span>
+                <span>{{ alternativa.text }}{% if alternativa.image_filename %}<img class="quiz-question-image" src="{{ url_for('imagem_questao', filename=alternativa.image_filename) }}" alt="Imagem da alternativa">{% endif %}</span>
               </label>
             {% endfor %}
           </div>

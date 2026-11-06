@@ -29,9 +29,10 @@
           <div>
             <p class="page-sub">Questão {{ loop.index }}</p>
             <h4 style="margin:0 0 8px;">{{ questao.prompt }}</h4>
+            {% if questao.image_filename %}<img class="quiz-question-image-preview" src="{{ url_for('imagem_questao', filename=questao.image_filename) }}" alt="Imagem do enunciado">{% endif %}
             <ul style="padding-left:20px;">
               {% for alternativa in questao.options.all() %}
-                <li>{{ alternativa.text }}{% if alternativa.is_correct %} <strong>(correta)</strong>{% endif %}</li>
+                <li>{{ alternativa.text }}{% if alternativa.is_correct %} <strong>(correta)</strong>{% endif %}{% if alternativa.image_filename %}<br><img class="quiz-question-image-preview" src="{{ url_for('imagem_questao', filename=alternativa.image_filename) }}" alt="Imagem da alternativa">{% endif %}</li>
               {% endfor %}
             </ul>
           </div>

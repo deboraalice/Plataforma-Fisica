@@ -7,16 +7,33 @@
 {% block content %}
 <div class="animate-fadeIn" style="max-width:850px;margin:0 auto;">
   <a class="dash-link" href="{{ url_for('editar_simulado_fisica', quiz_id=simulado.id) }}">Voltar ao simulado</a>
-  <section class="card" style="padding:24px;margin-top:14px;">
+  <section class="card quiz-question-editor" style="padding:24px;margin-top:14px;">
     <h2 class="page-title">{{ simulado.title }}</h2>
-    <form method="POST" class="form" novalidate>
+    <p class="page-sub">Use quatro alternativas obrigatórias e, se quiser, acrescente uma quinta.</p>
+    <form method="POST" class="form" enctype="multipart/form-data" novalidate>
       {{ formulario.hidden_tag() }}
-      {{ field(formulario.prompt, 'clipboard-list', placeholder='Escreva o enunciado da questão') }}
+      {{ field(formulario.prompt, 'clipboard-list', placeholder='Escreva o enunciado da questão', extra={'rows': '3'}) }}
+      <p class="page-sub">Imagens opcionais em PNG, JPG, GIF ou WEBP, com até 5 MB cada.</p>
+      {{ field(formulario.prompt_image, 'link') }}
+      {% if questao and questao.image_filename %}
+        <img class="quiz-question-image-preview" src="{{ url_for('imagem_questao', filename=questao.image_filename) }}" alt="Imagem atual do enunciado">
+      {% endif %}
       <h3>Alternativas</h3>
       {{ field(formulario.option_a, 'circle', placeholder='Alternativa A') }}
+      {{ field(formulario.option_a_image, 'link') }}
+      {% if imagens_opcoes[0] %}<img class="quiz-question-image-preview" src="{{ url_for('imagem_questao', filename=imagens_opcoes[0]) }}" alt="Imagem atual da alternativa A">{% endif %}
       {{ field(formulario.option_b, 'circle', placeholder='Alternativa B') }}
+      {{ field(formulario.option_b_image, 'link') }}
+      {% if imagens_opcoes[1] %}<img class="quiz-question-image-preview" src="{{ url_for('imagem_questao', filename=imagens_opcoes[1]) }}" alt="Imagem atual da alternativa B">{% endif %}
       {{ field(formulario.option_c, 'circle', placeholder='Alternativa C') }}
+      {{ field(formulario.option_c_image, 'link') }}
+      {% if imagens_opcoes[2] %}<img class="quiz-question-image-preview" src="{{ url_for('imagem_questao', filename=imagens_opcoes[2]) }}" alt="Imagem atual da alternativa C">{% endif %}
       {{ field(formulario.option_d, 'circle', placeholder='Alternativa D') }}
+      {{ field(formulario.option_d_image, 'link') }}
+      {% if imagens_opcoes[3] %}<img class="quiz-question-image-preview" src="{{ url_for('imagem_questao', filename=imagens_opcoes[3]) }}" alt="Imagem atual da alternativa D">{% endif %}
+      {{ field(formulario.option_e, 'circle', placeholder='Alternativa E (opcional)') }}
+      {{ field(formulario.option_e_image, 'link') }}
+      {% if imagens_opcoes[4] %}<img class="quiz-question-image-preview" src="{{ url_for('imagem_questao', filename=imagens_opcoes[4]) }}" alt="Imagem atual da alternativa E">{% endif %}
       {{ field(formulario.correct_option, 'check-circle') }}
       {{ field(formulario.explanation, 'info', placeholder='Explique a resposta, se desejar') }}
       <button class="btn btn-primary" type="submit">Salvar questão</button>

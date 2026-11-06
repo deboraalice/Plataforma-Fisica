@@ -141,6 +141,7 @@ class QuizQuestion(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     quiz_id = db.Column(db.Integer, db.ForeignKey("quiz.id"), nullable=False, index=True)
     prompt = db.Column(db.Text, nullable=False)
+    image_filename = db.Column(db.String(255), nullable=True)
     explanation = db.Column(db.Text, nullable=True)
     position = db.Column(db.Integer, nullable=False, default=0)
 
@@ -159,6 +160,7 @@ class QuizOption(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     question_id = db.Column(db.Integer, db.ForeignKey("quiz_question.id"), nullable=False, index=True)
     text = db.Column(db.Text, nullable=False)
+    image_filename = db.Column(db.String(255), nullable=True)
     is_correct = db.Column(db.Boolean, nullable=False, default=False)
     position = db.Column(db.Integer, nullable=False, default=0)
 

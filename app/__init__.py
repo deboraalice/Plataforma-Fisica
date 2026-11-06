@@ -62,7 +62,22 @@ def _upgrade_physics_topic_schema():
     db.session.commit()
 
 
+def _upgrade_quiz_image_schema():
+    """Adiciona campos de imagem a questões e alternativas já existentes."""
+    inspector = inspect(db.engine)
+    for table_name in ("quiz_question", "quiz_option"):
+        if table_name not in inspector.get_table_names():
+            continue
+        columns = {column["name"] for column in inspector.get_columns(table_name)}
+        if "image_filename" not in columns:
+            db.session.execute(
+                text(f"ALTER TABLE {table_name} ADD COLUMN image_filename VARCHAR(255) NULL")
+            )
+    db.session.commit()
+
+
 with app.app_context():
     db.create_all()
     _upgrade_physics_topic_schema()
+    _upgrade_quiz_image_schema()
     PhysicsService.seed_conteudo_inicial()

@@ -1,7 +1,20 @@
 from datetime import date
-from secrets import token_urlsafe
-from flask import abort, jsonify, redirect, render_template, request, session, url_for, flash
+from pathlib import Path
+from secrets import token_hex, token_urlsafe
+from flask import (
+    abort,
+    current_app,
+    flash,
+    jsonify,
+    redirect,
+    render_template,
+    request,
+    send_from_directory,
+    session,
+    url_for,
+)
 from flask_login import login_user, logout_user, login_required, current_user
+from sqlalchemy.exc import SQLAlchemyError
 from app import app, db
 from app.forms.login_form import LoginForm
 from app.forms.student_form import RegistrationForm
@@ -259,6 +272,65 @@ def _pagina_materiais_publicos(topico, formulario, material_em_edicao=None):
     )
 
 
+MAX_QUESTION_IMAGE_BYTES = 5 * 1024 * 1024
+QUESTION_IMAGE_SIGNATURES = (
+    (b"\x89PNG\r\n\x1a\n", ".png"),
+    (b"\xff\xd8\xff", ".jpg"),
+    (b"GIF87a", ".gif"),
+    (b"GIF89a", ".gif"),
+)
+
+
+class QuestionImageError(ValueError):
+    pass
+
+
+def _question_image_directory():
+    directory = Path(current_app.instance_path) / "question-images"
+    directory.mkdir(parents=True, exist_ok=True)
+    return directory
+
+
+def _save_question_image(upload):
+    if upload is None or not upload.filename:
+        return None
+
+    data = upload.stream.read(MAX_QUESTION_IMAGE_BYTES + 1)
+    if len(data) > MAX_QUESTION_IMAGE_BYTES:
+        raise QuestionImageError("Cada imagem deve ter no máximo 5 MB.")
+
+    extension = next(
+        (ext for signature, ext in QUESTION_IMAGE_SIGNATURES if data.startswith(signature)),
+        None,
+    )
+    if data.startswith(b"RIFF") and data[8:12] == b"WEBP":
+        extension = ".webp"
+    if extension is None:
+        raise QuestionImageError("Envie uma imagem PNG, JPG, GIF ou WEBP válida.")
+
+    filename = f"{token_hex(16)}{extension}"
+    try:
+        (_question_image_directory() / filename).write_bytes(data)
+    except OSError as erro:
+        raise QuestionImageError("Não foi possível salvar a imagem enviada.") from erro
+    return filename
+
+
+def _remove_question_image(filename):
+    if filename and Path(filename).name == filename:
+        (_question_image_directory() / filename).unlink(missing_ok=True)
+
+
+@app.route("/fisica/questoes/imagens/<path:filename>")
+@login_required
+def imagem_questao(filename):
+    if Path(filename).name != filename:
+        abort(404)
+    response = send_from_directory(_question_image_directory(), filename)
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    return response
+
+
 @app.route(
     "/professor/conteudos/<int:topic_id>/materiais",
     defaults={"resource_id": None},
@@ -402,48 +474,149 @@ def editar_questao_simulado(quiz_id, question_id):
     if request.method == "GET" and questao is not None:
         formulario.prompt.data = questao.prompt
         formulario.explanation.data = questao.explanation
-        fields = [formulario.option_a, formulario.option_b, formulario.option_c, formulario.option_d]
-        for field, option in zip(fields, opcoes[:4]):
+        fields = [
+            formulario.option_a,
+            formulario.option_b,
+            formulario.option_c,
+            formulario.option_d,
+            formulario.option_e,
+        ]
+        for field, option in zip(fields, opcoes[:5]):
             field.data = option.text
-        correta = next((i + 1 for i, option in enumerate(opcoes[:4]) if option.is_correct), 1)
+        correta = next((i + 1 for i, option in enumerate(opcoes[:5]) if option.is_correct), 1)
         formulario.correct_option.data = str(correta)
 
     if formulario.validate_on_submit():
-        if formulario.correct_option.data == "0":
+        fields = [
+            formulario.option_a,
+            formulario.option_b,
+            formulario.option_c,
+            formulario.option_d,
+            formulario.option_e,
+        ]
+        image_upload_fields = [
+            formulario.prompt_image,
+            formulario.option_a_image,
+            formulario.option_b_image,
+            formulario.option_c_image,
+            formulario.option_d_image,
+            formulario.option_e_image,
+        ]
+        correta = int(formulario.correct_option.data or 0)
+        alternativa_upload = image_upload_fields[correta] if correta else None
+        alternativa_existente = opcoes[correta - 1] if correta <= len(opcoes) and correta else None
+        alternativas_sem_conteudo = [
+            index
+            for index in range(4)
+            if not (fields[index].data or "").strip()
+            and not (image_upload_fields[index + 1].data and image_upload_fields[index + 1].data.filename)
+            and not (index < len(opcoes) and opcoes[index].image_filename)
+        ]
+        if alternativas_sem_conteudo:
+            for index in alternativas_sem_conteudo:
+                fields[index].errors.append("Preencha o texto ou envie uma imagem para esta alternativa.")
+        elif correta == 0:
             formulario.correct_option.errors.append("Marque a alternativa correta.")
+        elif not (fields[correta - 1].data or "").strip() and not (
+            alternativa_upload.data and alternativa_upload.data.filename
+        ) and not (alternativa_existente and alternativa_existente.image_filename):
+            formulario.correct_option.errors.append(
+                "Preencha o texto ou envie uma imagem para a alternativa correta."
+            )
+        elif questao is not None and len(opcoes) >= 5 and not (
+            (formulario.option_e.data or "").strip()
+            or (formulario.option_e_image.data and formulario.option_e_image.data.filename)
+            or opcoes[4].image_filename
+        ):
+            formulario.option_e.errors.append(
+                "Esta questão já possui alternativa E; preencha-a para manter a questão salva."
+            )
         else:
-            if questao is None:
-                questao = QuizQuestion(
-                    quiz_id=simulado.id,
-                    position=simulado.questions.count() + 1,
-                )
-                db.session.add(questao)
-                db.session.flush()
+            new_images = {}
+            for index, field in enumerate(image_upload_fields):
+                if not field.data or not field.data.filename:
+                    continue
+                try:
+                    new_images[index] = _save_question_image(field.data)
+                except QuestionImageError as erro:
+                    field.errors.append(str(erro))
 
-            questao.prompt = formulario.prompt.data.strip()
-            questao.explanation = (formulario.explanation.data or "").strip() or None
-            questao.position = questao.position or simulado.questions.count()
-            fields = [formulario.option_a, formulario.option_b, formulario.option_c, formulario.option_d]
-            for index, field in enumerate(fields):
-                if index < len(opcoes):
-                    option = opcoes[index]
+            if any(field.errors for field in image_upload_fields):
+                for filename in new_images.values():
+                    _remove_question_image(filename)
+            else:
+                previous_images = [
+                    questao.image_filename if questao is not None else None,
+                    *(option.image_filename for option in opcoes),
+                ]
+                quiz_id_for_log = simulado.id
+                try:
+                    if questao is None:
+                        questao = QuizQuestion(
+                            quiz_id=simulado.id,
+                            prompt=formulario.prompt.data.strip(),
+                            explanation=(formulario.explanation.data or "").strip() or None,
+                            position=simulado.questions.count() + 1,
+                        )
+                        db.session.add(questao)
+                        db.session.flush()
+
+                    questao.prompt = formulario.prompt.data.strip()
+                    questao.explanation = (formulario.explanation.data or "").strip() or None
+                    questao.position = questao.position or simulado.questions.count()
+                    if 0 in new_images:
+                        questao.image_filename = new_images[0]
+
+                    for index, field in enumerate(fields):
+                        texto = (field.data or "").strip()
+                        tem_imagem = bool(
+                            new_images.get(index + 1)
+                            or (index < len(opcoes) and opcoes[index].image_filename)
+                        )
+                        if index == 4 and not texto and not tem_imagem:
+                            continue
+                        if index < len(opcoes):
+                            option = opcoes[index]
+                        else:
+                            option = QuizOption(question_id=questao.id, position=index + 1)
+                            db.session.add(option)
+                        option.text = texto
+                        option.position = index + 1
+                        option.is_correct = correta == index + 1
+                        if index + 1 in new_images:
+                            option.image_filename = new_images[index + 1]
+
+                    db.session.commit()
+                except SQLAlchemyError:
+                    db.session.rollback()
+                    current_app.logger.exception(
+                        "Falha ao salvar questão do simulado %s", quiz_id_for_log
+                    )
+                    for filename in new_images.values():
+                        _remove_question_image(filename)
+                    flash("Não foi possível salvar a questão. Tente novamente.", "danger")
                 else:
-                    option = QuizOption(question_id=questao.id, position=index + 1)
-                    db.session.add(option)
-                option.text = field.data.strip()
-                option.position = index + 1
-                option.is_correct = formulario.correct_option.data == str(index + 1)
-            for option in opcoes[4:]:
-                option.is_correct = False
-            db.session.commit()
-            flash("Questão salva.", "success")
-            return redirect(url_for("editar_simulado_fisica", quiz_id=simulado.id))
+                    current_images = {questao.image_filename}
+                    current_images.update(
+                        option.image_filename
+                        for option in questao.options.all()
+                        if option.image_filename
+                    )
+                    for filename in previous_images:
+                        if filename and filename not in current_images:
+                            _remove_question_image(filename)
+                    flash("Questão salva.", "success")
+                    return redirect(url_for("editar_simulado_fisica", quiz_id=simulado.id))
 
     return render_template(
         "physics/question_form.html",
         simulado=simulado,
         questao=questao,
         formulario=formulario,
+        imagens_opcoes=[
+            opcoes[index].image_filename if index < len(opcoes) else None
+            for index in range(5)
+        ],
     )
 
 
@@ -911,9 +1084,19 @@ def api_obter_quiz(quiz_id):
                 {
                     "id": question.id,
                     "prompt": question.prompt,
+                    "image_url": url_for("imagem_questao", filename=question.image_filename)
+                    if question.image_filename
+                    else None,
                     "position": question.position,
                     "options": [
-                        {"id": option.id, "text": option.text, "position": option.position}
+                        {
+                            "id": option.id,
+                            "text": option.text,
+                            "image_url": url_for("imagem_questao", filename=option.image_filename)
+                            if option.image_filename
+                            else None,
+                            "position": option.position,
+                        }
                         for option in question.options.all()
                     ],
                 }
