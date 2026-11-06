@@ -58,7 +58,7 @@ class StudentService:
         db.session.commit()
 
     @staticmethod
-    def criar_ou_atualizar_via_suap(dados_suap, turma_id=None):
+    def criar_ou_atualizar_via_suap(dados_suap):
         student = StudentService.buscar_por_matricula_suap(
             dados_suap["matricula_suap"]
         )
@@ -74,8 +74,6 @@ class StudentService:
         student.email = dados_suap["email"]
         student.matricula_suap = dados_suap["matricula_suap"]
         student.is_if = True
-        if turma_id is not None:
-            student.turma_id = turma_id
 
         db.session.commit()
         return student

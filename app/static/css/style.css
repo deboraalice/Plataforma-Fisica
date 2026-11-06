@@ -1469,7 +1469,7 @@ a.dash-link:hover { text-decoration: underline; }
 .physics-topic-title-row .physics-topic-emoji { font-size: 36px; }
 .physics-topic-title-row h2 { margin: 0 0 3px; color: var(--text); font-size: 24px; }
 .physics-topic-title-row p { margin: 0; color: var(--muted); font-size: 14px; }
-.physics-intro { margin-bottom: 23px; padding: 18px 20px; border: 1px solid #C7D2FE; border-radius: var(--radius-lg); background: var(--primary-soft); color: var(--primary-dark); font-size: 14px; line-height: 1.7; }
+.physics-intro { margin-bottom: 23px; padding: 18px 20px; border: 1px solid #C7D2FE; border-radius: var(--radius-lg); background: var(--primary-soft); color: var(--primary-dark); font-size: 14px; line-height: 1.7; white-space: pre-line; }
 .physics-formulas { margin-bottom: 23px; }
 .physics-formulas h3, .physics-solved-example h3 { margin: 0 0 12px; color: var(--text); font-size: 16px; }
 .physics-formula-card { overflow: hidden; margin-bottom: 11px; border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--card); }

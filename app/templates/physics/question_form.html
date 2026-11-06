@@ -1,0 +1,26 @@
+{% extends "layouts/app_base.html" %}
+{% from "components/macros.html" import field %}
+
+{% block title %}Questão do simulado - FísicaFlow{% endblock %}
+{% block page_title %}{{ 'Editar' if questao else 'Nova' }} questão{% endblock %}
+
+{% block content %}
+<div class="animate-fadeIn" style="max-width:850px;margin:0 auto;">
+  <a class="dash-link" href="{{ url_for('editar_simulado_fisica', quiz_id=simulado.id) }}">Voltar ao simulado</a>
+  <section class="card" style="padding:24px;margin-top:14px;">
+    <h2 class="page-title">{{ simulado.title }}</h2>
+    <form method="POST" class="form" novalidate>
+      {{ formulario.hidden_tag() }}
+      {{ field(formulario.prompt, 'clipboard-list', placeholder='Escreva o enunciado da questão') }}
+      <h3>Alternativas</h3>
+      {{ field(formulario.option_a, 'circle', placeholder='Alternativa A') }}
+      {{ field(formulario.option_b, 'circle', placeholder='Alternativa B') }}
+      {{ field(formulario.option_c, 'circle', placeholder='Alternativa C') }}
+      {{ field(formulario.option_d, 'circle', placeholder='Alternativa D') }}
+      {{ field(formulario.correct_option, 'check-circle') }}
+      {{ field(formulario.explanation, 'info', placeholder='Explique a resposta, se desejar') }}
+      <button class="btn btn-primary" type="submit">Salvar questão</button>
+    </form>
+  </section>
+</div>
+{% endblock %}

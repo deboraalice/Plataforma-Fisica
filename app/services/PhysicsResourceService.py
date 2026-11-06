@@ -1,11 +1,8 @@
 import re
 from urllib.parse import parse_qs, urlparse
 
-from sqlalchemy import or_
-
 from app import db
 from app.models.physics import PhysicsResource, PhysicsTopic
-from app.models.team import Team
 from app.timeutils import agora_utc
 
 
@@ -55,8 +52,6 @@ class PhysicsResourceService:
         return (
             PhysicsResource.query.filter_by(
                 topic_id=topic_id,
-                team_id=None,
-                professor_id=None,
                 is_active=True,
             )
             .order_by(PhysicsResource.created_at, PhysicsResource.id)
@@ -64,60 +59,33 @@ class PhysicsResourceService:
         )
 
     @staticmethod
-    def recursos_visiveis_para_aluno(topic_id, team_id):
-        scope = PhysicsResource.team_id.is_(None)
-        if team_id is not None:
-            scope = or_(scope, PhysicsResource.team_id == team_id)
+    def listar_para_gerencia(topic_id):
         return (
-            PhysicsResource.query.join(Team, PhysicsResource.team_id == Team.id, isouter=True).filter(
-                PhysicsResource.topic_id == topic_id,
-                PhysicsResource.is_active.is_(True),
-                scope,
-                or_(PhysicsResource.team_id.is_(None), Team.archived_at.is_(None)),
-            )
-            .order_by(PhysicsResource.team_id.isnot(None), PhysicsResource.created_at, PhysicsResource.id)
-            .all()
-        )
-
-    @staticmethod
-    def listar_da_turma(team_id, professor_id):
-        return (
-            PhysicsResource.query.join(Team)
-            .filter(
-                PhysicsResource.team_id == team_id,
-                PhysicsResource.professor_id == professor_id,
-                Team.professor_id == professor_id,
-            )
+            PhysicsResource.query.filter_by(topic_id=topic_id)
             .order_by(PhysicsResource.created_at.desc(), PhysicsResource.id.desc())
             .all()
         )
 
     @staticmethod
-    def buscar_material_proprio(resource_id, team_id, professor_id):
-        return (
-            PhysicsResource.query.join(Team)
-            .filter(
-                PhysicsResource.id == resource_id,
-                PhysicsResource.team_id == team_id,
-                PhysicsResource.professor_id == professor_id,
-                Team.professor_id == professor_id,
-            )
-            .first()
-        )
+    def buscar_para_gerencia(resource_id, topic_id):
+        return PhysicsResource.query.filter_by(
+            id=resource_id,
+            topic_id=topic_id,
+        ).first()
 
     @staticmethod
-    def salvar_material_de_turma(team, professor_id, topic_id, title, description, url, resource=None):
-        if team.professor_id != professor_id or team.archived_at is not None:
-            raise ResourceError("Você não pode alterar materiais desta turma.")
+    def salvar_publico(topic_id, title, description, url, resource=None):
         if PhysicsTopic.query.filter_by(id=topic_id).first() is None:
-            raise ResourceError("Selecione um tópico válido.")
+            raise ResourceError("O tópico selecionado não existe.")
 
         normalized_url, youtube_id = _validar_url(url)
-        material = resource or PhysicsResource(team_id=team.id, professor_id=professor_id)
-        if material.team_id != team.id or material.professor_id != professor_id:
-            raise ResourceError("Você só pode editar materiais que criou nesta turma.")
+        material = resource or PhysicsResource()
+        if resource is not None and resource.topic_id != topic_id:
+            raise ResourceError("Este material pertence a outro tópico.")
 
         material.topic_id = topic_id
+        material.team_id = None
+        material.professor_id = None
         material.title = title.strip()
         material.description = (description or "").strip() or None
         material.url = normalized_url

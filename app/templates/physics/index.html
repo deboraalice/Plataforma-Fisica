@@ -12,6 +12,7 @@
       <p>{{ total_concluidos }} de {{ total_topicos }} tópicos concluídos</p>
     {% else %}
       <p>{{ total_topicos }} tópicos disponíveis</p>
+      <a class="btn btn-primary" href="{{ url_for('gerenciar_conteudos') }}">Gerenciar materiais</a>
     {% endif %}
   </div>
 

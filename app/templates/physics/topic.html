@@ -16,6 +16,14 @@
     </div>
   </header>
 
+  {% if current_user.get_id().startswith('professor:') %}
+  <div class="physics-topic-actions" style="margin:0 0 20px;">
+    <a class="btn btn-soft" href="{{ url_for('editar_conteudo_fisica', topic_id=topico.id) }}">Editar conteúdo</a>
+    <a class="btn btn-soft" href="{{ url_for('gerenciar_materiais_fisica', topic_id=topico.id) }}">Gerenciar videoaulas e materiais</a>
+    <a class="btn btn-soft" href="{{ url_for('gerenciar_simulados_fisica', topic_id=topico.id) }}">Gerenciar simulados</a>
+  </div>
+  {% endif %}
+
   <div class="physics-intro">{{ topico.content or topico.summary }}</div>
 
   {% if topico.formulas.count() %}
@@ -37,10 +45,10 @@
   </section>
   {% endif %}
 
-  {% if recursos_base %}
+  {% if recursos %}
   <section class="physics-resource-section">
-    <h3>Videoaulas e materiais da plataforma</h3>
-    {% for resource in recursos_base %}
+    <h3>Videoaulas e materiais</h3>
+    {% for resource in recursos %}
       <article class="physics-resource-card">
         <h4>{{ resource.title }}</h4>
         {% if resource.description %}<p>{{ resource.description }}</p>{% endif %}
@@ -57,21 +65,15 @@
   </section>
   {% endif %}
 
-  {% if materiais_turma %}
+  {% if simulados %}
   <section class="physics-resource-section">
-    <h3>Material do professor</h3>
-    {% for resource in materiais_turma %}
+    <h3>Simulados deste tópico</h3>
+    {% for simulado in simulados %}
       <article class="physics-resource-card">
-        <div class="physics-resource-byline">{{ resource.professor.name }} · {{ resource.team.nome }}</div>
-        <h4>{{ resource.title }}</h4>
-        {% if resource.description %}<p>{{ resource.description }}</p>{% endif %}
-        {% if resource.youtube_video_id %}
-          <div class="physics-video-frame">
-            <iframe src="{{ resource.youtube_embed_url }}" title="{{ resource.title }}" loading="lazy" referrerpolicy="strict-origin-when-cross-origin" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
-          </div>
-          <a class="physics-resource-fallback" href="{{ resource.url }}" target="_blank" rel="noopener noreferrer">Se o player não abrir, assistir no YouTube.</a>
-        {% else %}
-          <a href="{{ resource.url }}" target="_blank" rel="noopener noreferrer">Abrir material {{ icon('chevron-right', 14) }}</a>
+        <h4>{{ simulado.title }}</h4>
+        <p>{{ simulado.questions.count() }} questões · {{ simulado.points_per_correct }} ponto{{ '' if simulado.points_per_correct == 1 else 's' }} por acerto</p>
+        {% if pode_concluir %}
+          <a class="btn btn-primary" href="{{ url_for('responder_simulado', quiz_id=simulado.id) }}">Responder simulado</a>
         {% endif %}
       </article>
     {% endfor %}

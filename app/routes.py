@@ -1,6 +1,6 @@
 from datetime import date
 from secrets import token_urlsafe
-from flask import jsonify, redirect, render_template, request, session, url_for, flash
+from flask import abort, jsonify, redirect, render_template, request, session, url_for, flash
 from flask_login import login_user, logout_user, login_required, current_user
 from app import app, db
 from app.forms.login_form import LoginForm
@@ -9,15 +9,20 @@ from app.forms.task_form import TaskForm
 from app.forms.goal_form import GoalForm
 from app.forms.schedule_form import ScheduleForm
 from app.forms.pomodoro_form import PomodoroForm
-from app.forms.team_form import ActionForm, TeamForm, TeamJoinForm, TeamResourceForm
+from app.forms.physics_form import (
+    ActionForm,
+    PhysicsResourceForm,
+    PhysicsTopicContentForm,
+    QuizForm,
+    QuizQuestionForm,
+)
 from app.decorators import api_student_required, professor_required, student_required
 from app.models.task import Task
 from app.models.goal import Goal
 from app.models.schedule_item import ScheduleItem
 from app.models.student import Student
 from app.models.pomodoro_session import PomodoroSession
-from app.models.team import TeamMembership
-from app.models.physics import Quiz, QuizQuestion, PhysicsTopic
+from app.models.physics import Quiz, QuizOption, QuizQuestion, PhysicsTopic
 from app.services.TaskService import TaskService
 from app.services.GoalService import GoalService
 from app.services.ScheduleService import ScheduleService
@@ -27,11 +32,9 @@ from app.services.StudentService import StudentService
 from app.services.ProfessorService import ProfessorService
 from app.services.AuthService import AuthService, SuapAuthError
 from app.services.DashboardService import DashboardService
-from app.services.TeamService import TeamService
 from app.services.QuizService import QuizService, QuizError
 from app.services.PhysicsService import PhysicsService
 from app.services.PhysicsResourceService import PhysicsResourceService, ResourceError
-from app.timeutils import para_local
 
 @app.route("/")
 def index():
@@ -158,268 +161,6 @@ def cadastrar_student():
 
 
 # ---------------------------------------------------------------------------
-# Turmas: gestão do professor, entrada do aluno e histórico de vínculos
-# ---------------------------------------------------------------------------
-
-@app.route("/turmas", methods=["GET", "POST"])
-@professor_required
-def turmas():
-    formulario = TeamForm()
-    if formulario.validate_on_submit():
-        team = TeamService.criar(current_user.id, formulario.nome.data)
-        flash("Turma criada. Compartilhe o código com seus alunos.", "success")
-        return redirect(url_for("detalhe_turma", team_id=team.id))
-
-    return render_template(
-        "teams/index.html",
-        formulario=formulario,
-        turmas=TeamService.listar_do_professor(current_user.id),
-    )
-
-
-@app.route("/turmas/<int:team_id>", methods=["GET", "POST"])
-@professor_required
-def detalhe_turma(team_id):
-    team = TeamService.buscar_do_professor(team_id, current_user.id)
-    if team is None:
-        flash("Turma não encontrada.", "warning")
-        return redirect(url_for("turmas"))
-
-    formulario = TeamForm(obj=team)
-    if request.method == "POST":
-        if team.archived_at is not None:
-            flash("Turmas arquivadas não podem ser alteradas.", "warning")
-            return redirect(url_for("detalhe_turma", team_id=team.id))
-        if formulario.validate_on_submit():
-            TeamService.renomear(team, formulario.nome.data)
-            flash("Nome da turma atualizado.", "success")
-            return redirect(url_for("detalhe_turma", team_id=team.id))
-
-    alunos = team.students.order_by(Student.name.asc()).all()
-    vinculos = TeamMembership.query.filter_by(team_id=team.id, left_at=None).all()
-    vinculo_por_aluno = {v.student_id: v for v in vinculos}
-    return render_template(
-        "teams/detail.html",
-        turma=team,
-        formulario=formulario,
-        formulario_acao=ActionForm(),
-        alunos=alunos,
-        vinculo_por_aluno=vinculo_por_aluno,
-        para_local=para_local,
-    )
-
-
-@app.route("/turmas/<int:team_id>/codigo/renovar", methods=["POST"])
-@professor_required
-def renovar_codigo_turma(team_id):
-    team = TeamService.buscar_do_professor(team_id, current_user.id)
-    formulario = ActionForm()
-    if team is None:
-        flash("Turma não encontrada.", "warning")
-    elif formulario.validate_on_submit():
-        TeamService.renovar_codigo(team)
-        flash("Novo código gerado. O código anterior deixou de funcionar.", "success")
-    return redirect(url_for("detalhe_turma", team_id=team_id))
-
-
-@app.route("/turmas/<int:team_id>/codigo/desativar", methods=["POST"])
-@professor_required
-def desativar_codigo_turma(team_id):
-    team = TeamService.buscar_do_professor(team_id, current_user.id)
-    formulario = ActionForm()
-    if team is None:
-        flash("Turma não encontrada.", "warning")
-    elif formulario.validate_on_submit():
-        TeamService.desativar_codigo(team)
-        flash("Código desativado. Alunos não poderão entrar com ele.", "success")
-    return redirect(url_for("detalhe_turma", team_id=team_id))
-
-
-@app.route("/turmas/<int:team_id>/arquivar", methods=["POST"])
-@professor_required
-def arquivar_turma(team_id):
-    team = TeamService.buscar_do_professor(team_id, current_user.id)
-    formulario = ActionForm()
-    if team is None:
-        flash("Turma não encontrada.", "warning")
-    elif formulario.validate_on_submit():
-        TeamService.arquivar(team)
-        flash("Turma arquivada. O histórico foi preservado e os alunos ficaram sem turma.", "success")
-        return redirect(url_for("turmas"))
-    return redirect(url_for("detalhe_turma", team_id=team_id))
-
-
-@app.route("/turmas/<int:team_id>/alunos/<int:student_id>/remover", methods=["POST"])
-@professor_required
-def remover_aluno_turma(team_id, student_id):
-    team = TeamService.buscar_do_professor(team_id, current_user.id)
-    formulario = ActionForm()
-    student = StudentService.buscar_por_id(student_id)
-    if team is None or student is None:
-        flash("Turma ou aluno não encontrado.", "warning")
-    elif formulario.validate_on_submit() and TeamService.remover_aluno(team, student):
-        flash("Aluno removido da turma. O período de vínculo foi registrado.", "success")
-    return redirect(url_for("detalhe_turma", team_id=team_id))
-
-
-def _opcoes_de_topicos(formulario):
-    itens = PhysicsService.listar_topicos()
-    formulario.topic_id.choices = [(0, "Selecione um tópico")] + [
-        (item["topico"].id, f"{item['topico'].unit.name} · {item['topico'].title}")
-        for item in itens
-    ]
-
-
-def _pagina_materiais_turma(team, formulario, edit_resource=None):
-    _opcoes_de_topicos(formulario)
-    return render_template(
-        "teams/materials.html",
-        turma=team,
-        formulario=formulario,
-        material_em_edicao=edit_resource,
-        formulario_acao=ActionForm(),
-        materiais=PhysicsResourceService.listar_da_turma(team.id, current_user.id),
-    )
-
-
-@app.route("/turmas/<int:team_id>/materiais", methods=["GET", "POST"])
-@professor_required
-def materiais_da_turma(team_id):
-    team = TeamService.buscar_do_professor(team_id, current_user.id)
-    if team is None or team.archived_at is not None:
-        flash("Turma não encontrada ou arquivada.", "warning")
-        return redirect(url_for("turmas"))
-
-    formulario = TeamResourceForm()
-    _opcoes_de_topicos(formulario)
-    if formulario.validate_on_submit():
-        try:
-            PhysicsResourceService.salvar_material_de_turma(
-                team=team,
-                professor_id=current_user.id,
-                topic_id=formulario.topic_id.data,
-                title=formulario.title.data,
-                description=formulario.description.data,
-                url=formulario.url.data,
-            )
-        except ResourceError as erro:
-            formulario.url.errors.append(str(erro))
-        else:
-            flash("Material adicionado à turma.", "success")
-            return redirect(url_for("materiais_da_turma", team_id=team.id))
-
-    return _pagina_materiais_turma(team, formulario)
-
-
-@app.route("/turmas/<int:team_id>/materiais/<int:resource_id>/editar", methods=["GET", "POST"])
-@professor_required
-def editar_material_turma(team_id, resource_id):
-    team = TeamService.buscar_do_professor(team_id, current_user.id)
-    resource = PhysicsResourceService.buscar_material_proprio(
-        resource_id,
-        team_id,
-        current_user.id,
-    )
-    if team is None or team.archived_at is not None or resource is None:
-        flash("Material não encontrado ou indisponível para edição.", "warning")
-        return redirect(url_for("turmas"))
-
-    formulario = TeamResourceForm(obj=resource)
-    _opcoes_de_topicos(formulario)
-    if formulario.validate_on_submit():
-        try:
-            PhysicsResourceService.salvar_material_de_turma(
-                team=team,
-                professor_id=current_user.id,
-                topic_id=formulario.topic_id.data,
-                title=formulario.title.data,
-                description=formulario.description.data,
-                url=formulario.url.data,
-                resource=resource,
-            )
-        except ResourceError as erro:
-            formulario.url.errors.append(str(erro))
-        else:
-            flash("Material atualizado.", "success")
-            return redirect(url_for("materiais_da_turma", team_id=team.id))
-
-    return _pagina_materiais_turma(team, formulario, edit_resource=resource)
-
-
-@app.route("/turmas/<int:team_id>/materiais/<int:resource_id>/remover", methods=["POST"])
-@professor_required
-def remover_material_turma(team_id, resource_id):
-    team = TeamService.buscar_do_professor(team_id, current_user.id)
-    resource = PhysicsResourceService.buscar_material_proprio(
-        resource_id,
-        team_id,
-        current_user.id,
-    )
-    formulario = ActionForm()
-    if team is None or team.archived_at is not None or resource is None:
-        flash("Material não encontrado ou indisponível para remoção.", "warning")
-    elif formulario.validate_on_submit():
-        PhysicsResourceService.remover_material(resource)
-        flash("Material removido da turma.", "success")
-    return redirect(url_for("materiais_da_turma", team_id=team_id))
-
-
-def _pagina_configuracoes_aluno(formulario=None, preview_team=None):
-    return render_template(
-        "settings/index.html",
-        formulario=formulario or TeamJoinForm(),
-        formulario_sair=ActionForm(),
-        turma_atual=current_user.team,
-        preview_team=preview_team,
-        historico_turmas=TeamService.historico_do_aluno(current_user.id),
-        para_local=para_local,
-    )
-
-
-@app.route("/configuracoes")
-@student_required
-def configuracoes_aluno():
-    return _pagina_configuracoes_aluno()
-
-
-@app.route("/configuracoes/turma/entrar", methods=["POST"])
-@student_required
-def entrar_em_turma():
-    formulario = TeamJoinForm()
-    if not formulario.validate_on_submit():
-        return _pagina_configuracoes_aluno(formulario)
-    if current_user.team_id is not None:
-        flash("Saia da turma atual antes de entrar em outra.", "warning")
-        return redirect(url_for("configuracoes_aluno"))
-
-    team = TeamService.buscar_por_codigo(formulario.code.data)
-    if team is None:
-        formulario.code.errors.append("Código inválido, desativado ou de uma turma arquivada.")
-        return _pagina_configuracoes_aluno(formulario)
-
-    if request.form.get("stage") == "confirmar":
-        try:
-            TeamService.entrar(current_user._get_current_object(), team)
-        except ValueError as erro:
-            flash(str(erro), "warning")
-            return redirect(url_for("configuracoes_aluno"))
-        flash(f"Você entrou na turma {team.nome}, de {team.professor.name}.", "success")
-        return redirect(url_for("configuracoes_aluno"))
-
-    formulario.code.data = team.access_code
-    return _pagina_configuracoes_aluno(formulario, preview_team=team)
-
-
-@app.route("/configuracoes/turma/sair", methods=["POST"])
-@student_required
-def sair_de_turma():
-    formulario = ActionForm()
-    if formulario.validate_on_submit() and TeamService.sair(current_user._get_current_object()):
-        flash("Você saiu da turma. Seu histórico de vínculo foi preservado.", "success")
-    return redirect(url_for("configuracoes_aluno"))
-
-
-# ---------------------------------------------------------------------------
 # Física: catálogo de tópicos e conteúdo teórico para alunos e professores
 # ---------------------------------------------------------------------------
 
@@ -447,21 +188,20 @@ def topico_fisica(slug):
     if topico is None:
         flash("Tópico não encontrado.", "warning")
         return redirect(url_for("fisica"))
-    recursos = (
-        PhysicsResourceService.recursos_visiveis_para_aluno(
-            topico.id,
-            usuario.team_id,
-        )
-        if isinstance(usuario, Student)
-        else PhysicsResourceService.recursos_publicos(topico.id)
+    recursos = PhysicsResourceService.recursos_publicos(topico.id)
+    simulados = (
+        Quiz.query.filter_by(topic_id=topico.id, is_active=True)
+        .filter(Quiz.questions.any())
+        .order_by(Quiz.id.desc())
+        .all()
     )
     return render_template(
         "physics/topic.html",
         topico=topico,
         concluido=concluido,
         pode_concluir=isinstance(usuario, Student),
-        recursos_base=[resource for resource in recursos if resource.team_id is None],
-        materiais_turma=[resource for resource in recursos if resource.team_id is not None],
+        recursos=recursos,
+        simulados=simulados,
     )
 
 
@@ -478,6 +218,301 @@ def concluir_topico_fisica(slug):
         "success" if novo else "info",
     )
     return redirect(url_for("topico_fisica", slug=slug))
+
+
+@app.route("/professor/conteudos")
+@professor_required
+def gerenciar_conteudos():
+    return render_template(
+        "physics/manage.html",
+        topicos=PhysicsService.listar_topicos(),
+    )
+
+
+@app.route("/professor/conteudos/<int:topic_id>/editar", methods=["GET", "POST"])
+@professor_required
+def editar_conteudo_fisica(topic_id):
+    topico = db.session.get(PhysicsTopic, topic_id)
+    if topico is None:
+        abort(404)
+
+    formulario = PhysicsTopicContentForm(obj=topico)
+    if formulario.validate_on_submit():
+        topico.summary = formulario.summary.data.strip()
+        topico.content = formulario.content.data.strip()
+        topico.solved_example = (formulario.solved_example.data or "").strip() or None
+        db.session.commit()
+        flash("Conteúdo do tópico atualizado.", "success")
+        return redirect(url_for("gerenciar_conteudos"))
+
+    return render_template("physics/topic_form.html", topico=topico, formulario=formulario)
+
+
+def _pagina_materiais_publicos(topico, formulario, material_em_edicao=None):
+    return render_template(
+        "physics/resources.html",
+        topico=topico,
+        formulario=formulario,
+        material_em_edicao=material_em_edicao,
+        formulario_acao=ActionForm(),
+        materiais=PhysicsResourceService.listar_para_gerencia(topico.id),
+    )
+
+
+@app.route(
+    "/professor/conteudos/<int:topic_id>/materiais",
+    defaults={"resource_id": None},
+    methods=["GET", "POST"],
+)
+@app.route(
+    "/professor/conteudos/<int:topic_id>/materiais/<int:resource_id>",
+    methods=["GET", "POST"],
+)
+@professor_required
+def gerenciar_materiais_fisica(topic_id, resource_id):
+    topico = db.session.get(PhysicsTopic, topic_id)
+    if topico is None:
+        abort(404)
+    material = (
+        PhysicsResourceService.buscar_para_gerencia(resource_id, topic_id)
+        if resource_id is not None
+        else None
+    )
+    if resource_id is not None and material is None:
+        abort(404)
+
+    formulario = PhysicsResourceForm(obj=material)
+    if formulario.validate_on_submit():
+        try:
+            PhysicsResourceService.salvar_publico(
+                topic_id=topico.id,
+                title=formulario.title.data,
+                description=formulario.description.data,
+                url=formulario.url.data,
+                resource=material,
+            )
+        except ResourceError as erro:
+            formulario.url.errors.append(str(erro))
+        else:
+            flash("Material publicado para todos os alunos.", "success")
+            return redirect(
+                url_for("gerenciar_materiais_fisica", topic_id=topico.id)
+            )
+
+    return _pagina_materiais_publicos(topico, formulario, material)
+
+
+@app.route(
+    "/professor/conteudos/<int:topic_id>/materiais/<int:resource_id>/remover",
+    methods=["POST"],
+)
+@professor_required
+def remover_material_fisica(topic_id, resource_id):
+    topico = db.session.get(PhysicsTopic, topic_id)
+    material = PhysicsResourceService.buscar_para_gerencia(resource_id, topic_id)
+    formulario = ActionForm()
+    if topico is None or material is None:
+        abort(404)
+    if formulario.validate_on_submit():
+        PhysicsResourceService.remover_material(material)
+        flash("Material removido da aba de Física.", "success")
+    return redirect(url_for("gerenciar_materiais_fisica", topic_id=topic_id))
+
+
+@app.route("/professor/conteudos/<int:topic_id>/simulados", methods=["GET", "POST"])
+@professor_required
+def gerenciar_simulados_fisica(topic_id):
+    topico = db.session.get(PhysicsTopic, topic_id)
+    if topico is None:
+        abort(404)
+    formulario = QuizForm()
+    if formulario.validate_on_submit():
+        simulado = Quiz(
+            topic_id=topico.id,
+            title=formulario.title.data.strip(),
+            points_per_correct=formulario.points_per_correct.data,
+            is_active=formulario.is_active.data,
+        )
+        db.session.add(simulado)
+        db.session.commit()
+        flash("Simulado criado. Agora adicione as questões.", "success")
+        return redirect(url_for("editar_simulado_fisica", quiz_id=simulado.id))
+
+    simulados = Quiz.query.filter_by(topic_id=topico.id).order_by(Quiz.id.desc()).all()
+    return render_template(
+        "physics/quizzes.html",
+        topico=topico,
+        formulario=formulario,
+        simulados=simulados,
+    )
+
+
+@app.route("/professor/simulados/<int:quiz_id>", methods=["GET", "POST"])
+@professor_required
+def editar_simulado_fisica(quiz_id):
+    simulado = db.session.get(Quiz, quiz_id)
+    if simulado is None:
+        abort(404)
+    formulario = QuizForm(obj=simulado)
+    if formulario.validate_on_submit():
+        simulado.title = formulario.title.data.strip()
+        simulado.points_per_correct = formulario.points_per_correct.data
+        simulado.is_active = formulario.is_active.data
+        db.session.commit()
+        flash("Configurações do simulado salvas.", "success")
+        return redirect(url_for("editar_simulado_fisica", quiz_id=simulado.id))
+
+    questoes = simulado.questions.order_by(QuizQuestion.position, QuizQuestion.id).all()
+    return render_template(
+        "physics/quiz_form.html",
+        simulado=simulado,
+        formulario=formulario,
+        questoes=questoes,
+    )
+
+
+@app.route(
+    "/professor/simulados/<int:quiz_id>/questoes/nova",
+    defaults={"question_id": None},
+    methods=["GET", "POST"],
+)
+@app.route(
+    "/professor/simulados/<int:quiz_id>/questoes/<int:question_id>",
+    methods=["GET", "POST"],
+)
+@professor_required
+def editar_questao_simulado(quiz_id, question_id):
+    simulado = db.session.get(Quiz, quiz_id)
+    if simulado is None:
+        abort(404)
+    questao = (
+        db.session.get(QuizQuestion, question_id)
+        if question_id is not None
+        else None
+    )
+    if question_id is not None and (questao is None or questao.quiz_id != simulado.id):
+        abort(404)
+
+    formulario = QuizQuestionForm()
+    opcoes = (
+        questao.options.order_by(QuizOption.position, QuizOption.id).all()
+        if questao is not None
+        else []
+    )
+    if request.method == "GET" and questao is not None:
+        formulario.prompt.data = questao.prompt
+        formulario.explanation.data = questao.explanation
+        fields = [formulario.option_a, formulario.option_b, formulario.option_c, formulario.option_d]
+        for field, option in zip(fields, opcoes[:4]):
+            field.data = option.text
+        correta = next((i + 1 for i, option in enumerate(opcoes[:4]) if option.is_correct), 1)
+        formulario.correct_option.data = str(correta)
+
+    if formulario.validate_on_submit():
+        if formulario.correct_option.data == "0":
+            formulario.correct_option.errors.append("Marque a alternativa correta.")
+        else:
+            if questao is None:
+                questao = QuizQuestion(
+                    quiz_id=simulado.id,
+                    position=simulado.questions.count() + 1,
+                )
+                db.session.add(questao)
+                db.session.flush()
+
+            questao.prompt = formulario.prompt.data.strip()
+            questao.explanation = (formulario.explanation.data or "").strip() or None
+            questao.position = questao.position or simulado.questions.count()
+            fields = [formulario.option_a, formulario.option_b, formulario.option_c, formulario.option_d]
+            for index, field in enumerate(fields):
+                if index < len(opcoes):
+                    option = opcoes[index]
+                else:
+                    option = QuizOption(question_id=questao.id, position=index + 1)
+                    db.session.add(option)
+                option.text = field.data.strip()
+                option.position = index + 1
+                option.is_correct = formulario.correct_option.data == str(index + 1)
+            for option in opcoes[4:]:
+                option.is_correct = False
+            db.session.commit()
+            flash("Questão salva.", "success")
+            return redirect(url_for("editar_simulado_fisica", quiz_id=simulado.id))
+
+    return render_template(
+        "physics/question_form.html",
+        simulado=simulado,
+        questao=questao,
+        formulario=formulario,
+    )
+
+
+@app.route("/fisica/simulados/<int:quiz_id>", methods=["GET", "POST"])
+@student_required
+def responder_simulado(quiz_id):
+    simulado = Quiz.query.filter_by(id=quiz_id, is_active=True).first_or_404()
+    questoes = simulado.questions.order_by(QuizQuestion.position, QuizQuestion.id).all()
+    if not questoes:
+        flash("Este simulado ainda não tem questões.", "warning")
+        return redirect(url_for("topico_fisica", slug=simulado.topic.slug))
+
+    formulario_acao = ActionForm()
+    respostas_marcadas = {
+        questao.id: request.form.get(f"question_{questao.id}")
+        for questao in questoes
+    } if request.method == "POST" else {}
+    if request.method == "POST" and formulario_acao.validate_on_submit():
+        faltantes = [
+            questao for questao in questoes
+            if not respostas_marcadas.get(questao.id)
+        ]
+        if faltantes:
+            flash("Responda a todas as questões antes de enviar.", "warning")
+        else:
+            try:
+                tentativa = QuizService.iniciar_tentativa(current_user.id, simulado.id)
+                resultado = QuizService.enviar_respostas(
+                    tentativa.id,
+                    current_user.id,
+                    respostas_marcadas,
+                )
+            except QuizError as erro:
+                flash(str(erro), "warning")
+            else:
+                detalhes_respostas = []
+                for questao in questoes:
+                    opcoes = questao.options.order_by(QuizOption.position, QuizOption.id).all()
+                    marcada = next(
+                        (opcao for opcao in opcoes if str(opcao.id) == respostas_marcadas[questao.id]),
+                        None,
+                    )
+                    correta = next((opcao for opcao in opcoes if opcao.is_correct), None)
+                    detalhes_respostas.append({
+                        "questao": questao,
+                        "marcada": marcada,
+                        "correta": correta,
+                        "explicacao": questao.explanation,
+                        "acertou": bool(marcada and marcada.is_correct),
+                    })
+                return render_template(
+                    "physics/quiz_take.html",
+                    simulado=simulado,
+                    questoes=questoes,
+                    formulario_acao=formulario_acao,
+                    respostas_marcadas={},
+                    resultado=resultado,
+                    detalhes_respostas=detalhes_respostas,
+                )
+
+    return render_template(
+        "physics/quiz_take.html",
+        simulado=simulado,
+        questoes=questoes,
+        formulario_acao=formulario_acao,
+        respostas_marcadas=respostas_marcadas,
+        resultado=None,
+        detalhes_respostas=[],
+    )
 
 
 # ---------------------------------------------------------------------------

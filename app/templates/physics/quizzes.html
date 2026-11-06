@@ -1,0 +1,42 @@
+{% extends "layouts/app_base.html" %}
+{% from "components/macros.html" import field %}
+
+{% block title %}Simulados - {{ topico.title }}{% endblock %}
+{% block page_title %}Simulados{% endblock %}
+
+{% block content %}
+<div class="animate-fadeIn" style="max-width:900px;margin:0 auto;">
+  <a class="dash-link" href="{{ url_for('gerenciar_conteudos') }}">Voltar aos conteúdos</a>
+  <section class="card" style="padding:24px;margin:14px 0 24px;">
+    <h2 class="page-title">Criar simulado · {{ topico.title }}</h2>
+    <p class="page-sub">Depois de criar, adicione questões de múltipla escolha com quatro alternativas e marque a correta.</p>
+    <form method="POST" class="form" novalidate>
+      {{ formulario.hidden_tag() }}
+      {{ field(formulario.title, 'clipboard-list', placeholder='Ex.: Revisão de Cinemática') }}
+      {{ field(formulario.points_per_correct, 'zap', type='number', extra={'min': '0', 'max': '100'}) }}
+      <label style="display:flex;gap:8px;align-items:center;">
+        {{ formulario.is_active() }} Disponível para os alunos
+      </label>
+      <button class="btn btn-primary" type="submit">Criar simulado</button>
+    </form>
+  </section>
+
+  <h3 style="margin-bottom:14px;">Simulados deste tópico</h3>
+  <div class="task-list">
+    {% for simulado in simulados %}
+      <article class="card" style="padding:18px;">
+        <div style="display:flex;justify-content:space-between;gap:14px;flex-wrap:wrap;">
+          <div>
+            <span class="physics-resource-kind">{{ 'Publicado' if simulado.is_active and simulado.questions.count() else 'Rascunho' }}</span>
+            <h4 style="margin:8px 0 4px;">{{ simulado.title }}</h4>
+            <p class="page-sub">{{ simulado.questions.count() }} questões · {{ simulado.points_per_correct }} ponto(s) por acerto</p>
+          </div>
+          <a class="btn btn-soft" href="{{ url_for('editar_simulado_fisica', quiz_id=simulado.id) }}">Editar simulado</a>
+        </div>
+      </article>
+    {% else %}
+      <div class="empty"><h3>Nenhum simulado ainda</h3><p>Crie o primeiro no formulário acima.</p></div>
+    {% endfor %}
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,55 @@
+{% extends "layouts/app_base.html" %}
+{% from "components/macros.html" import icon %}
+
+{% block title %}{{ simulado.title }} - FísicaFlow{% endblock %}
+{% block page_title %}Simulado{% endblock %}
+
+{% block content %}
+<div class="animate-fadeIn" style="max-width:900px;margin:0 auto;">
+  <a class="dash-link" href="{{ url_for('topico_fisica', slug=simulado.topic.slug) }}">{{ icon('chevron-right', 14) }} Voltar a {{ simulado.topic.title }}</a>
+  <header class="page-header" style="margin-top:14px;">
+    <div>
+      <h2 class="page-title">{{ simulado.title }}</h2>
+      <p class="page-sub">{{ questoes|length }} questões · {{ simulado.points_per_correct }} ponto(s) por acerto</p>
+    </div>
+  </header>
+
+  {% if resultado %}
+    <section class="card" style="padding:24px;margin-bottom:20px;">
+      <h3>Resultado: {{ resultado.correct_count }} de {{ resultado.question_count }} corretas</h3>
+      <p class="page-sub">Você recebeu {{ resultado.points_awarded }} ponto(s) nesta tentativa.</p>
+      <a class="btn btn-primary" href="{{ url_for('topico_fisica', slug=simulado.topic.slug) }}">Voltar ao tópico</a>
+    </section>
+    <div class="task-list">
+      {% for item in detalhes_respostas %}
+        <article class="card" style="padding:20px;">
+          <span class="physics-resource-kind">{{ 'Acertou' if item.acertou else 'Revise esta questão' }}</span>
+          <h4 style="margin:8px 0 12px;">{{ loop.index }}. {{ item.questao.prompt }}</h4>
+          <p><strong>Sua resposta:</strong> {{ item.marcada.text if item.marcada else 'Sem resposta' }}</p>
+          {% if not item.acertou and item.correta %}<p><strong>Resposta correta:</strong> {{ item.correta.text }}</p>{% endif %}
+          {% if item.explicacao %}<p class="page-sub">{{ item.explicacao }}</p>{% endif %}
+        </article>
+      {% endfor %}
+    </div>
+  {% else %}
+    <form method="POST" class="task-list">
+      {{ formulario_acao.hidden_tag() }}
+      {% for questao in questoes %}
+        <fieldset class="card" style="padding:20px;border:0;">
+          <legend style="font-size:18px;font-weight:700;padding:0 0 12px;">{{ loop.index }}. {{ questao.prompt }}</legend>
+          <div style="display:grid;gap:10px;">
+            {% for alternativa in questao.options.all() %}
+              <label class="card" style="padding:12px;display:flex;gap:10px;align-items:flex-start;cursor:pointer;">
+                <input type="radio" name="question_{{ questao.id }}" value="{{ alternativa.id }}" required
+                  {% if respostas_marcadas.get(questao.id, '') == alternativa.id|string %}checked{% endif %}>
+                <span>{{ alternativa.text }}</span>
+              </label>
+            {% endfor %}
+          </div>
+        </fieldset>
+      {% endfor %}
+      <button class="btn btn-primary" type="submit">Enviar respostas</button>
+    </form>
+  {% endif %}
+</div>
+{% endblock %}

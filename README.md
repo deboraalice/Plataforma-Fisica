@@ -20,6 +20,14 @@ A plataforma é **complementar** ao Google Sala de Aula: ela não gerencia turma
 | Autenticação | SUAP OAuth2; e-mail e senha com hash |
 | Versionamento e gestão | Git, GitHub e GitHub Projects (Kanban) |
 
+## Materiais de Física
+
+Professores gerenciam os tópicos pela opção **Conteúdos**. Podem editar o resumo,
+o texto teórico e os exemplos, publicar videoaulas do YouTube (reproduzidas na
+própria página do tópico) e criar simulados de múltipla escolha com quatro
+alternativas e correção automática. O conteúdo publicado fica disponível a todos
+os alunos; o projeto não faz gestão de turmas, que permanece no Google Sala de Aula.
+
 ## Como executar
 
 ```bash

@@ -129,10 +129,11 @@
 </section>
 
 {% else %}
-{# Professores ainda não têm painel próprio #}
+{# Área de atuação do professor #}
 <section class="card welcome animate-fadeIn">
 <h2>Olá, {{ current_user.name.split()[0] }}! 👋</h2>
-  <p>Bem-vindo(a) à FísicaFlow. Seu espaço de professor está preparado; a gestão de turmas será a próxima etapa.</p>
+  <p>Atualize os conteúdos, videoaulas e simulados que os alunos encontram na aba de Física.</p>
+  <a class="btn btn-primary" href="{{ url_for('gerenciar_conteudos') }}">Gerenciar conteúdos</a>
 </section>
 {% endif %}
 {% endblock %}

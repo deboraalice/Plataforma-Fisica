@@ -1,0 +1,35 @@
+{% extends "layouts/app_base.html" %}
+{% from "components/macros.html" import icon %}
+
+{% block title %}Gerenciar conteúdos - FísicaFlow{% endblock %}
+{% block page_title %}Conteúdos de Física{% endblock %}
+
+{% block content %}
+<div class="animate-fadeIn">
+  <div class="page-header">
+    <div>
+      <h2 class="page-title">Materiais da aba de Física</h2>
+      <p class="page-sub">Edite o conteúdo e publique materiais, videoaulas e simulados para todos os alunos.</p>
+    </div>
+    <a class="btn btn-soft" href="{{ url_for('fisica') }}">Ver aba de Física</a>
+  </div>
+
+  <div class="task-list">
+    {% for item in topicos %}
+      {% set topico = item.topico %}
+      <article class="card" style="padding:20px;">
+        <p class="page-sub">{{ topico.unit.name }}</p>
+        <h3 style="margin:0 0 8px;">{{ topico.emoji or '⚛️' }} {{ topico.title }}</h3>
+        <p class="page-sub">{{ topico.summary }}</p>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:16px;">
+          <a class="btn btn-soft" href="{{ url_for('editar_conteudo_fisica', topic_id=topico.id) }}">Editar conteúdo</a>
+          <a class="btn btn-soft" href="{{ url_for('gerenciar_materiais_fisica', topic_id=topico.id) }}">Videoaulas e materiais</a>
+          <a class="btn btn-soft" href="{{ url_for('gerenciar_simulados_fisica', topic_id=topico.id) }}">Simulados</a>
+        </div>
+      </article>
+    {% else %}
+      <div class="empty"><h3>Nenhum tópico disponível</h3></div>
+    {% endfor %}
+  </div>
+</div>
+{% endblock %}

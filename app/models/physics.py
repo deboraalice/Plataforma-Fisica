@@ -102,7 +102,7 @@ class TopicCompletion(db.Model):
 
 
 class PhysicsResource(db.Model):
-    """Recurso geral da plataforma ou material suplementar de uma turma."""
+    """Material de Física publicado para os estudantes da plataforma."""
 
     __tablename__ = "physics_resource"
     __table_args__ = (

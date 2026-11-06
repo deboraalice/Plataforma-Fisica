@@ -1,0 +1,22 @@
+{% extends "layouts/app_base.html" %}
+{% from "components/macros.html" import field %}
+
+{% block title %}Editar {{ topico.title }} - FísicaFlow{% endblock %}
+{% block page_title %}Editar conteúdo{% endblock %}
+
+{% block content %}
+<div class="animate-fadeIn" style="max-width:900px;margin:0 auto;">
+  <a class="dash-link" href="{{ url_for('gerenciar_conteudos') }}">Voltar aos conteúdos</a>
+  <section class="card" style="padding:24px;margin-top:14px;">
+    <h2 class="page-title">{{ topico.emoji or '⚛️' }} {{ topico.title }}</h2>
+    <p class="page-sub">As alterações aparecerão para todos os alunos na aba de Física.</p>
+    <form method="POST" class="form" novalidate>
+      {{ formulario.hidden_tag() }}
+      {{ field(formulario.summary, 'info', placeholder='Resumo exibido no catálogo de tópicos') }}
+      {{ field(formulario.content, 'clipboard-list', placeholder='Explique o conteúdo teórico deste tópico') }}
+      {{ field(formulario.solved_example, 'check-circle', placeholder='Inclua um exemplo resolvido, se desejar') }}
+      <button class="btn btn-primary" type="submit">{{ formulario.submit.label.text }}</button>
+    </form>
+  </section>
+</div>
+{% endblock %}
