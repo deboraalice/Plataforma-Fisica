@@ -17,7 +17,7 @@ A plataforma é **complementar** ao Google Sala de Aula: ela não gerencia turma
 | Back-end | Python, Flask, SQLAlchemy |
 | Front-end | HTML5, CSS3, JavaScript, Canvas API |
 | Banco de dados | *(a confirmar: SQLite, MySQL ou PostgreSQL)* |
-| Autenticação | SUAP (planejado); e-mail e senha com hash |
+| Autenticação | SUAP OAuth2; e-mail e senha com hash |
 | Versionamento e gestão | Git, GitHub e GitHub Projects (Kanban) |
 
 ## Como executar
@@ -43,15 +43,16 @@ A aplicação ficará disponível em `http://localhost:5000`.
 
 ### Variáveis de ambiente
 
-Exemplo de `.env` (não envie este arquivo ao GitHub):
+Copie `.env.example` para `.env` e preencha as credenciais da aplicação OAuth2
+cadastrada no SUAP. Não envie o arquivo `.env` ao GitHub.
 
-```
-SECRET_KEY=troque-por-uma-chave-segura
-DATABASE_URL=sqlite:///app.db
-# Credenciais do SUAP (quando a integração for feita)
-SUAP_CLIENT_ID=
-SUAP_CLIENT_SECRET=
-```
+Cadastre no SUAP a URL de retorno da aplicação. Para desenvolvimento local, use
+`http://127.0.0.1:5000/login/suap/callback` ao abrir a aplicação por esse endereço.
+Se usar `localhost`, cadastre `http://localhost:5000/login/suap/callback` em vez disso.
+Em produção, cadastre a URL HTTPS do domínio publicado, mantendo o caminho
+`/login/suap/callback`. O endereço usado no login é montado com o host atual da
+aplicação; protocolo, host, porta e caminho precisam coincidir exatamente com o
+endereço cadastrado no SUAP. Nunca publique `SUAP_CLIENT_SECRET`.
 
 ## Estrutura do projeto
 

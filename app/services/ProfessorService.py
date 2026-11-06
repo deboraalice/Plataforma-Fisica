@@ -16,6 +16,8 @@ class ProfessorService:
 
     @staticmethod
     def buscar_por_matricula_suap(matricula_suap):
+        if not matricula_suap:
+            return None
         return Professor.query.filter_by(matricula_suap=matricula_suap).first()
 
     @staticmethod

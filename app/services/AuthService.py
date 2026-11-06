@@ -1,80 +1,102 @@
+import json
 import os
+from urllib.error import HTTPError, URLError
+from urllib.parse import urlencode
+from urllib.request import Request, urlopen
 
-from requests_oauthlib import OAuth2Session
-from oauthlib.oauth2 import (
-    OAuth2Error,
-    AccessDeniedError,
-    InvalidGrantError,
-    MissingTokenError,
-)
 
-SUAP_AUTH_BASE_URL = "https://suap.ifrn.edu.br/o/authorize/"
-SUAP_TOKEN_URL = "https://suap.ifrn.edu.br/o/token/"
-SUAP_USER_INFO_URL = "https://suap.ifrn.edu.br/api/eu/"
-
-SUAP_SCOPES = ["identificacao_do_usuario", "email"]
+SUAP_URL = os.environ.get("SUAP_URL", "https://suap.ifrn.edu.br").rstrip("/")
+SUAP_AUTH_URL = f"{SUAP_URL}/o/authorize/"
+SUAP_TOKEN_URL = f"{SUAP_URL}/o/token/"
+SUAP_USER_INFO_URL = f"{SUAP_URL}/api/rh/meus-dados/"
 
 
 class SuapAuthError(Exception):
     pass
 
+
 class AuthService:
     @staticmethod
-    def _client():
+    def _credentials():
         client_id = os.environ.get("SUAP_CLIENT_ID")
         client_secret = os.environ.get("SUAP_CLIENT_SECRET")
-        redirect_uri = os.environ.get("SUAP_REDIRECT_URI")
-
-        if not all([client_id, client_secret, redirect_uri]):
+        if not client_id or not client_secret:
             raise RuntimeError(
-                "SUAP_CLIENT_ID, SUAP_CLIENT_SECRET e SUAP_REDIRECT_URI "
-                "precisam estar definidos como variáveis de ambiente."
+                "SUAP_CLIENT_ID e SUAP_CLIENT_SECRET precisam estar definidos "
+                "como variáveis de ambiente."
             )
-        return client_id, client_secret, redirect_uri
+        return client_id, client_secret
 
     @staticmethod
-    def get_authorization_url():
-        client_id, _, redirect_uri = AuthService._client()
-        oauth = OAuth2Session(client_id, redirect_uri=redirect_uri, scope=SUAP_SCOPES)
-        return oauth.authorization_url(SUAP_AUTH_BASE_URL)
+    def get_authorization_url(redirect_uri, state):
+        client_id, _ = AuthService._credentials()
+        params = urlencode({
+            "response_type": "code",
+            "client_id": client_id,
+            "redirect_uri": redirect_uri,
+            "state": state,
+        })
+        return f"{SUAP_AUTH_URL}?{params}"
 
     @staticmethod
-    def get_user_data(authorization_response_url, state):
-        client_id, client_secret, redirect_uri = AuthService._client()
-        oauth = OAuth2Session(client_id, redirect_uri=redirect_uri, state=state)
-
+    def get_user_data(code, redirect_uri):
+        client_id, client_secret = AuthService._credentials()
+        token_body = urlencode({
+            "grant_type": "authorization_code",
+            "code": code,
+            "redirect_uri": redirect_uri,
+            "client_id": client_id,
+            "client_secret": client_secret,
+        }).encode("utf-8")
         try:
-            oauth.fetch_token(
+            with urlopen(Request(
                 SUAP_TOKEN_URL,
-                authorization_response=authorization_response_url,
-                client_secret=client_secret,
-            )
-        except AccessDeniedError:
+                data=token_body,
+                headers={"Content-Type": "application/x-www-form-urlencoded"},
+            ), timeout=10) as response:
+                token_data = json.load(response)
+        except (HTTPError, URLError, TimeoutError, ValueError) as erro:
             raise SuapAuthError(
-                "Você cancelou a autorização de acesso ao SUAP. "
-                "Tente novamente se quiser entrar com sua conta institucional."
-            )
-        except (InvalidGrantError, MissingTokenError):
-            raise SuapAuthError(
-                "O link de login com o SUAP expirou ou já foi utilizado. "
-                "Tente entrar novamente."
-            )
-        except OAuth2Error as e:
-            raise SuapAuthError(f"Não foi possível autenticar com o SUAP: {e}")
+                "Não foi possível obter o token do SUAP. Tente novamente."
+            ) from erro
+
+        if not isinstance(token_data, dict):
+            raise SuapAuthError("O SUAP retornou uma resposta de token inválida.")
+        access_token = token_data.get("access_token")
+        if not access_token:
+            raise SuapAuthError("O SUAP não retornou um token de acesso válido.")
 
         try:
-            response = oauth.get(SUAP_USER_INFO_URL, timeout=10)
-            response.raise_for_status()
-        except Exception:
+            with urlopen(Request(
+                SUAP_USER_INFO_URL,
+                headers={
+                    "Authorization": f"Bearer {access_token}",
+                    "Accept": "application/json",
+                },
+            ), timeout=10) as response:
+                dados = json.load(response)
+        except (HTTPError, URLError, TimeoutError, ValueError) as erro:
             raise SuapAuthError(
-                "Login no SUAP funcionou, mas não conseguimos buscar seus "
-                "dados. Tente novamente em instantes."
-            )
+                "O login no SUAP foi autorizado, mas não foi possível consultar "
+                "seus dados. Tente novamente."
+            ) from erro
 
-        dados = response.json()
+        if not isinstance(dados, dict):
+            raise SuapAuthError("O SUAP retornou um perfil em formato inesperado.")
 
-        obrigatorios = ["identificacao", "nome_usual", "email", "tipo_vinculo"]
-        faltando = [campo for campo in obrigatorios if not dados.get(campo)]
+        nome = dados.get("nome_usual") or dados.get("nome")
+        email = dados.get("email")
+        identificador = (
+            dados.get("matricula")
+            or dados.get("identificacao")
+            or dados.get("username")
+        )
+        obrigatorios = {
+            "nome": nome,
+            "email": email if isinstance(email, str) else None,
+            "tipo_vinculo": dados.get("tipo_vinculo"),
+        }
+        faltando = [campo for campo, valor in obrigatorios.items() if not valor]
         if faltando:
             raise SuapAuthError(
                 "O SUAP não retornou todos os dados necessários "
@@ -82,9 +104,9 @@ class AuthService:
             )
 
         return {
-            "matricula_suap": dados["identificacao"],
-            "nome": dados["nome_usual"],
-            "email": dados["email"],
+            "matricula_suap": str(identificador) if identificador else None,
+            "nome": nome,
+            "email": email.strip().lower(),
             "tipo_vinculo": dados["tipo_vinculo"],
             "vinculo": dados.get("vinculo", {}),
         }

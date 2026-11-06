@@ -6,7 +6,7 @@ class Student(UserMixin, db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(128), index=True, nullable=False)
     email = db.Column(db.String(128), index=True, unique=True, nullable=False)
-    password_hash = db.Column(db.String(256), nullable=False)
+    password_hash = db.Column(db.String(256), nullable=True)
 
     matricula_suap = db.Column(db.String(32), index=True, unique=True, nullable=True)
 

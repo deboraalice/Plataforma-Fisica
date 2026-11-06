@@ -1,4 +1,5 @@
 from datetime import date
+from secrets import token_urlsafe
 from flask import jsonify, redirect, render_template, request, session, url_for, flash
 from flask_login import login_user, logout_user, login_required, current_user
 from app import app, db
@@ -70,17 +71,20 @@ def login():
  
 @app.route("/login/suap")
 def login_suap():
+    state = token_urlsafe(32)
+    redirect_uri = url_for("login_suap_callback", _external=True)
+    session["suap_oauth_state"] = state
     try:
-        authorization_url, state = AuthService.get_authorization_url()
+        authorization_url = AuthService.get_authorization_url(redirect_uri, state)
     except RuntimeError:
         flash(
-            "O login com o SUAP está temporariamente indisponível. "
-            "Use o cadastro tradicional.",
+            "O login com o SUAP ainda não foi configurado. Defina "
+            "SUAP_CLIENT_ID e SUAP_CLIENT_SECRET no arquivo .env e cadastre "
+            "a URL de retorno indicada no README.",
             "warning",
         )
         return redirect(url_for("login"))
  
-    session["suap_oauth_state"] = state
     return redirect(authorization_url)
  
  
@@ -96,8 +100,14 @@ def login_suap_callback():
         flash("Login com o SUAP cancelado.", "warning")
         return redirect(url_for("login"))
  
+    code = request.args.get("code")
+    if not code:
+        flash("O SUAP não enviou o código de autorização. Tente novamente.", "danger")
+        return redirect(url_for("login"))
+
     try:
-        dados_suap = AuthService.get_user_data(request.url, state=state)
+        redirect_uri = url_for("login_suap_callback", _external=True)
+        dados_suap = AuthService.get_user_data(code, redirect_uri)
     except SuapAuthError as e:
         flash(str(e), "danger")
         return redirect(url_for("login"))

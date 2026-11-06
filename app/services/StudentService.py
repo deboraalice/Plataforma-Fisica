@@ -20,6 +20,8 @@ class StudentService:
 
     @staticmethod
     def buscar_por_matricula_suap(matricula_suap):
+        if not matricula_suap:
+            return None
         return Student.query.filter_by(matricula_suap=matricula_suap).first()
 
     @staticmethod
