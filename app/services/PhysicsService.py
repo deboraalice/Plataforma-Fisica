@@ -2,6 +2,8 @@ from sqlalchemy.exc import IntegrityError
 
 from app import db
 from app.models.physics import PhysicsFormula, PhysicsTopic, PhysicsUnit, TopicCompletion
+from app.models.point_transaction import PointTransaction
+from app.services.PointsService import PointsService
 
 
 TOPICOS_INICIAIS = [
@@ -212,8 +214,13 @@ class PhysicsService:
     def concluir_topico(student_id, topic_id):
         if TopicCompletion.query.filter_by(student_id=student_id, topic_id=topic_id).first():
             return False
-        db.session.add(TopicCompletion(student_id=student_id, topic_id=topic_id))
+        completion = TopicCompletion(student_id=student_id, topic_id=topic_id)
+        db.session.add(completion)
         try:
+            db.session.flush()
+            PointsService.conceder(
+                student_id, 30, PointTransaction.TOPIC_COMPLETE, completion.id
+            )
             db.session.commit()
             return True
         except IntegrityError:

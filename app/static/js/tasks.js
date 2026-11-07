@@ -107,6 +107,7 @@
     onSaved: function (res) {
       inserirOuSubstituir(res.data.html);
       atualizarContadores(res.data.counts);
+      FF.updatePoints(res.data.points_total);
     },
     onDeleted: function (res, id) {
       var card = list.querySelector('[data-id="' + id + '"]');
@@ -134,8 +135,10 @@
         if (res.ok) {
           inserirOuSubstituir(res.data.html);
           atualizarContadores(res.data.counts);
+          FF.updatePoints(res.data.points_total);
           FF.toast(res.data.task.status === 'concluida'
-            ? 'Tarefa concluída! 🎉' : 'Tarefa reaberta.', 'success');
+            ? (res.data.points_awarded ? 'Tarefa concluída! +' + res.data.points_awarded + ' pontos 🎉' : 'Tarefa concluída!')
+            : 'Tarefa reaberta.', 'success');
         } else {
           botao.disabled = false;
           FF.toast(res.data.error || 'Não foi possível atualizar a tarefa.', 'danger');

@@ -3,6 +3,7 @@ from sqlalchemy.exc import IntegrityError
 from app import db
 from app.models.physics import (
     FirstQuestionScore,
+    FirstQuizCompletion,
     Quiz,
     QuizAnswer,
     QuizAttempt,
@@ -19,6 +20,8 @@ class QuizError(ValueError):
 
 
 class QuizService:
+    QUIZ_MASTERY_BONUS = 150
+    QUIZ_MASTERY_THRESHOLD = 0.75
     @staticmethod
     def iniciar_tentativa(student_id, quiz_id):
         quiz = db.session.get(Quiz, quiz_id)
@@ -129,6 +132,35 @@ class QuizService:
         tentativa.correct_count = correct_count
         tentativa.question_count = len(questoes)
         tentativa.completed_at = agora_utc()
+
+        if correct_count / len(questoes) >= QuizService.QUIZ_MASTERY_THRESHOLD:
+            ja_concluiu_com_desempenho = FirstQuizCompletion.query.filter_by(
+                student_id=student_id,
+                quiz_id=tentativa.quiz_id,
+            ).first()
+            if ja_concluiu_com_desempenho is None:
+                try:
+                    with db.session.begin_nested():
+                        bonus = FirstQuizCompletion(
+                            student_id=student_id,
+                            quiz_id=tentativa.quiz_id,
+                            attempt_id=tentativa.id,
+                            points_awarded=QuizService.QUIZ_MASTERY_BONUS,
+                        )
+                        db.session.add(bonus)
+                        db.session.flush()
+                        PointsService.conceder(
+                            student_id,
+                            QuizService.QUIZ_MASTERY_BONUS,
+                            PointTransaction.QUIZ_MASTERY,
+                            bonus.id,
+                        )
+                        db.session.flush()
+                    points_awarded += QuizService.QUIZ_MASTERY_BONUS
+                except IntegrityError:
+                    # Um envio concorrente já concedeu este bônus para o quiz.
+                    pass
+
         db.session.commit()
 
         return {

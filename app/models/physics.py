@@ -221,3 +221,23 @@ class FirstQuestionScore(db.Model):
     student = db.relationship("Student")
     question = db.relationship("QuizQuestion")
     attempt = db.relationship("QuizAttempt")
+
+
+class FirstQuizCompletion(db.Model):
+    """Bônus por desempenho no simulado, concedido uma vez por aluno e quiz."""
+
+    __tablename__ = "first_quiz_completion"
+    __table_args__ = (
+        db.UniqueConstraint("student_id", "quiz_id", name="uq_first_quiz_student_quiz"),
+    )
+
+    id = db.Column(db.Integer, primary_key=True)
+    student_id = db.Column(db.Integer, db.ForeignKey("student.id"), nullable=False, index=True)
+    quiz_id = db.Column(db.Integer, db.ForeignKey("quiz.id"), nullable=False, index=True)
+    attempt_id = db.Column(db.Integer, db.ForeignKey("quiz_attempt.id"), nullable=False)
+    points_awarded = db.Column(db.Integer, nullable=False, default=150)
+    recorded_at = db.Column(db.DateTime, nullable=False, default=agora_utc)
+
+    student = db.relationship("Student")
+    quiz = db.relationship("Quiz")
+    attempt = db.relationship("QuizAttempt")

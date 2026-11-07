@@ -2,6 +2,8 @@ from datetime import datetime
 
 from app import db
 from app.models.goal import Goal
+from app.models.point_transaction import PointTransaction
+from app.services.PointsService import PointsService
 
 
 
@@ -51,6 +53,14 @@ class GoalService:
         if not goal.is_done:
             goal.status = "concluida"
             goal.completed_at = datetime.utcnow()
+            ja_pontuada = PointTransaction.query.filter_by(
+                reason=PointTransaction.GOAL_COMPLETE,
+                ref_id=goal.id,
+            ).first()
+            if ja_pontuada is None:
+                PointsService.conceder(
+                    goal.student_id, 100, PointTransaction.GOAL_COMPLETE, goal.id
+                )
             db.session.commit()
         return goal
 

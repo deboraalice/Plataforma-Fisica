@@ -69,12 +69,11 @@
     <header>{{ icon('trophy', 18) }} <span>Sua pontuação</span></header>
     <div class="dash-score-number font-mono"><span data-points>{{ d.pontos }}</span></div>
     <p>pontos totais</p>
-    {# PROVISÓRIO: posição fixa até o Ranking existir #}
     <div class="dash-rank">
       <span class="dash-rank-pos">{{ d.posicao }}º</span>
       <span>posição no ranking</span>
     </div>
-    <span class="dash-score-link is-soon">Ver ranking completo {{ icon('chevron-right', 14) }}</span>
+    <a class="dash-score-link" href="{{ url_for('ranking') }}">Ver ranking completo {{ icon('chevron-right', 14) }}</a>
   </article>
 </section>
 

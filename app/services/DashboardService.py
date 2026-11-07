@@ -8,14 +8,12 @@ from app.services.GoalService import GoalService
 from app.services.PointsService import PointsService
 from app.services.TaskService import TaskService
 from app.services.PhysicsService import PhysicsService
+from app.services.RankingService import RankingService
 
 FUSO = ZoneInfo("America/Sao_Paulo")
 DIAS_CURTOS = ["Seg", "Ter", "Qua", "Qui", "Sex", "Sáb", "Dom"]
 MESES = ["jan", "fev", "mar", "abr", "mai", "jun",
          "jul", "ago", "set", "out", "nov", "dez"]
-
-POSICAO_RANKING_PROVISORIA = 4
-
 
 def _formatar_data_curta(d):
     return f"{d.day} {MESES[d.month - 1]}"
@@ -198,7 +196,11 @@ class DashboardService:
                 "resumo": f"{topicos_concluidos} de {total_topicos} tópicos concluídos",
             },
             "pontos": PointsService.total(sid),
-            "posicao": POSICAO_RANKING_PROVISORIA,   # provisório
+            "posicao": next(
+                (aluno["position"] for aluno in RankingService.classificacao()
+                 if aluno["student_id"] == sid),
+                0,
+            ),
             "proximas": DashboardService.proximas_tarefas(sid),
             "fisica": [
                 {

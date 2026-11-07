@@ -13,6 +13,7 @@ from .physics import (
     QuizAttempt,
     QuizAnswer,
     FirstQuestionScore,
+    FirstQuizCompletion,
 )
 from .task import Task
 from .goal import Goal

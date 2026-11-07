@@ -1,7 +1,9 @@
 from datetime import datetime
 
 from app import db
+from app.models.point_transaction import PointTransaction
 from app.models.task import Task
+from app.services.PointsService import PointsService
 
 class TaskService:
     """
@@ -36,25 +38,46 @@ class TaskService:
         task = Task(student_id=student_id)
         TaskService._preencher(task, formulario)
         db.session.add(task)
+        db.session.flush()
+        if task.is_done:
+            TaskService._pontuar_conclusao(task)
         db.session.commit()
         return task
 
     @staticmethod
     def atualizar(task, formulario):
+        estava_concluida = task.is_done
         TaskService._preencher(task, formulario)
+        if task.is_done and not estava_concluida:
+            TaskService._pontuar_conclusao(task)
         db.session.commit()
         return task
 
     @staticmethod
     def alternar_conclusao(task):
+        points_awarded = 0
         if task.is_done:
             task.status = "pendente"
             task.completed_at = None
         else:
             task.status = "concluida"
             task.completed_at = datetime.utcnow()
+            points_awarded = 20 if TaskService._pontuar_conclusao(task) else 0
         db.session.commit()
-        return task
+        return task, points_awarded
+
+    @staticmethod
+    def _pontuar_conclusao(task):
+        ja_pontuada = PointTransaction.query.filter_by(
+            reason=PointTransaction.TASK_COMPLETE,
+            ref_id=task.id,
+        ).first()
+        if ja_pontuada is None:
+            PointsService.conceder(
+                task.student_id, 20, PointTransaction.TASK_COMPLETE, task.id
+            )
+            return True
+        return False
 
     @staticmethod
     def remover(task):

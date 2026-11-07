@@ -122,6 +122,7 @@
     onSaved: function (res) {
       inserirOuSubstituir(res.data.html);
       atualizarContadores(res.data.counts);
+      FF.updatePoints(res.data.points_total);
     },
     onDeleted: function (res, id) {
       var card = list.querySelector('[data-id="' + id + '"]');
@@ -157,8 +158,11 @@
         if (res.ok) {
           var novo = inserirOuSubstituir(res.data.html);
           atualizarContadores(res.data.counts);
+          FF.updatePoints(res.data.points_total);
           confete(novo);
-          FF.toast('Meta concluída! 🎉');
+          FF.toast(res.data.points_awarded
+            ? 'Meta concluída! +' + res.data.points_awarded + ' pontos 🎉'
+            : 'Meta concluída! 🎉');
         } else {
           botao.disabled = false;
           card.classList.remove('is-completing');

@@ -1,0 +1,83 @@
+{% extends "layouts/app_base.html" %}
+{% from "components/macros.html" import icon %}
+
+{% block title %}Ranking - FísicaFlow{% endblock %}
+{% block page_title %}Ranking{% endblock %}
+
+{% block content %}
+<div class="ranking-page animate-fadeIn">
+  <header class="ranking-page-heading">
+    <div>
+      <h2>Ranking</h2>
+      <p>Alunos com maior pontuação na plataforma</p>
+    </div>
+    <span class="ranking-total">{{ alunos_count }} estudante{{ '' if alunos_count == 1 else 's' }}</span>
+  </header>
+
+  <section class="ranking-podium" aria-label="Pódio dos três primeiros colocados">
+    {% for posicao in [2, 1, 3] %}
+      {% set aluno = podio|selectattr('position', 'equalto', posicao)|first|default(none) %}
+      {% if aluno %}
+        {% set nomes = aluno.name.split() %}
+        <article class="ranking-podium-place place-{{ posicao }}{% if aluno.student_id == current_user.id %} is-current-user{% endif %}">
+          <span class="ranking-medal" aria-label="{{ posicao }}º lugar">{{ ['🥇', '🥈', '🥉'][posicao - 1] }}</span>
+          <span class="ranking-avatar">{{ nomes[0][0] }}{{ nomes[-1][0] if nomes|length > 1 else '' }}</span>
+          <strong>{{ aluno.name }}</strong>
+          <span class="ranking-podium-points">{{ '{:,}'.format(aluno.points).replace(',', '.') }} <small>pts</small></span>
+        </article>
+      {% endif %}
+    {% endfor %}
+  </section>
+
+  <div class="ranking-content-grid">
+    <section class="card ranking-list-card">
+      <header class="ranking-card-heading">
+        <h3>Classificação completa</h3>
+      </header>
+      {% if classificacao %}
+      <ol class="ranking-list">
+        {% for aluno in classificacao %}
+          {% set nomes = aluno.name.split() %}
+          <li class="ranking-row{% if aluno.student_id == current_user.id %} is-current-user{% endif %}">
+            <span class="ranking-row-position{% if aluno.position <= 3 %} is-top-three{% endif %}">{{ aluno.position }}</span>
+            <span class="ranking-row-avatar">{{ nomes[0][0] }}{{ nomes[-1][0] if nomes|length > 1 else '' }}</span>
+            <span class="ranking-row-name">{{ aluno.name }}{% if aluno.student_id == current_user.id %}<small>Você</small>{% endif %}</span>
+            <strong class="ranking-row-points">{{ icon('zap', 15) }} {{ '{:,}'.format(aluno.points).replace(',', '.') }}</strong>
+          </li>
+        {% endfor %}
+      </ol>
+      {% else %}
+        <p class="ranking-empty">Ainda não há estudantes cadastrados.</p>
+      {% endif %}
+    </section>
+
+    <aside class="card ranking-guide-card">
+      <header class="ranking-card-heading">
+        <h3>{{ icon('info', 17) }} Como ganhar pontos</h3>
+      </header>
+      <ul class="ranking-points-guide">
+        <li><span>⏱️</span><span>Concluir sessão Pomodoro</span><strong>2 pts/min</strong></li>
+        <li><span>✅</span><span>Concluir uma tarefa</span><strong>+20 pts</strong></li>
+        <li><span>🎯</span><span>Concluir uma meta</span><strong>+100 pts</strong></li>
+        <li><span>📚</span><span>Concluir um tópico de Física</span><strong>+30 pts</strong></li>
+        <li><span>🧪</span><span>Acertar questão do simulado</span><strong>conforme simulado</strong></li>
+        <li><span>🏅</span><span>Fazer 75% ou mais no simulado</span><strong>+150 pts</strong></li>
+      </ul>
+      <p class="ranking-guide-note">Cada tarefa, meta, tópico e bônus de simulado pontua uma vez. Vídeos ainda não dão pontos automaticamente, pois abrir um vídeo não confirma que ele foi assistido.</p>
+
+      {% if propria %}
+      <div class="ranking-own-position">
+        <span>Sua posição</span>
+        <strong>{{ propria.position }}º</strong>
+        {% if propria.position > 1 %}
+          {% set anterior = classificacao[propria.position - 2] %}
+          <small>A {{ '{:,}'.format(anterior.points - propria.points).replace(',', '.') }} pts do {{ propria.position - 1 }}º lugar</small>
+        {% else %}
+          <small>Você está em primeiro lugar! 🎉</small>
+        {% endif %}
+      </div>
+      {% endif %}
+    </aside>
+  </div>
+</div>
+{% endblock %}

@@ -49,6 +49,7 @@ from app.services.DashboardService import DashboardService
 from app.services.QuizService import QuizService, QuizError
 from app.services.PhysicsService import PhysicsService
 from app.services.PhysicsResourceService import PhysicsResourceService, ResourceError
+from app.services.RankingService import RankingService
 from app.timeutils import agora_utc
 
 @app.route("/")
@@ -61,6 +62,13 @@ def index():
     # só alunos têm painel de estudos; professores veem uma mensagem simples
     dados = DashboardService.montar(usuario) if isinstance(usuario, Student) else None
     return render_template("index.html", d=dados)
+
+
+@app.route("/ranking")
+@student_required
+def ranking():
+    dados = RankingService.dados_da_pagina(current_user.id)
+    return render_template("ranking/index.html", **dados)
  
  
 @app.route("/login", methods=["GET", "POST"])
@@ -229,7 +237,7 @@ def concluir_topico_fisica(slug):
         return redirect(url_for("fisica"))
     novo = PhysicsService.concluir_topico(current_user.id, topico.id)
     flash(
-        "Tópico marcado como concluído!" if novo else "Este tópico já estava concluído.",
+        "Tópico concluído! +30 pontos 🎉" if novo else "Este tópico já estava concluído.",
         "success" if novo else "info",
     )
     return redirect(url_for("topico_fisica", slug=slug))
@@ -696,13 +704,15 @@ def responder_simulado(quiz_id):
 #   /api/tarefas/...       -> rotas JSON chamadas via AJAX (fetch) pela página
 # ---------------------------------------------------------------------------
 
-def _resposta_tarefa(task, status=200):
+def _resposta_tarefa(task, status=200, points_awarded=0):
     """JSON com a tarefa, o card já renderizado (Jinja) e os contadores."""
     return jsonify(
         ok=True,
         task=task.to_dict(),
         html=render_template("tasks/_task_card.html", t=task),
         counts=TaskService.contar(current_user.id),
+        points_total=PointsService.total(current_user.id),
+        points_awarded=points_awarded,
     ), status
 
 
@@ -770,8 +780,8 @@ def api_alternar_tarefa(task_id):
     if task is None:
         return _tarefa_nao_encontrada()
 
-    TaskService.alternar_conclusao(task)
-    return _resposta_tarefa(task)
+    task, points_awarded = TaskService.alternar_conclusao(task)
+    return _resposta_tarefa(task, points_awarded=points_awarded)
 
 
 @app.route("/api/tarefas/<int:task_id>", methods=["DELETE"])
@@ -791,13 +801,15 @@ def api_excluir_tarefa(task_id):
 #   /api/metas/...         -> rotas JSON chamadas via AJAX (fetch) pela página
 # ---------------------------------------------------------------------------
 
-def _resposta_meta(goal, status=200):
+def _resposta_meta(goal, status=200, points_awarded=0):
     """JSON com a meta, o card já renderizado (Jinja) e os contadores."""
     return jsonify(
         ok=True,
         goal=goal.to_dict(),
         html=render_template("goals/_goal_card.html", g=goal),
         counts=GoalService.contar(current_user.id),
+        points_total=PointsService.total(current_user.id),
+        points_awarded=points_awarded,
     ), status
 
 
@@ -855,8 +867,9 @@ def api_concluir_meta(goal_id):
     if goal is None:
         return _meta_nao_encontrada()
 
+    era_concluida = goal.is_done
     GoalService.concluir(goal)
-    return _resposta_meta(goal)
+    return _resposta_meta(goal, points_awarded=0 if era_concluida else 100)
 
 
 @app.route("/api/metas/<int:goal_id>", methods=["DELETE"])

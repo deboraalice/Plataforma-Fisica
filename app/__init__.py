@@ -36,6 +36,7 @@ def load_user(id_composto):
 
 from app import routes, models
 from app.services.PhysicsService import PhysicsService
+from app.services.RankingService import RankingService
 from app.simulators import simulators
 
 
@@ -80,4 +81,5 @@ with app.app_context():
     db.create_all()
     _upgrade_physics_topic_schema()
     _upgrade_quiz_image_schema()
+    RankingService.registrar_pontos_historicos()
     PhysicsService.seed_conteudo_inicial()
