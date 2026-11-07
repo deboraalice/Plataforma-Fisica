@@ -1,4 +1,5 @@
 from datetime import date
+from math import ceil
 from pathlib import Path
 from secrets import token_hex, token_urlsafe
 from flask import (
@@ -48,6 +49,7 @@ from app.services.DashboardService import DashboardService
 from app.services.QuizService import QuizService, QuizError
 from app.services.PhysicsService import PhysicsService
 from app.services.PhysicsResourceService import PhysicsResourceService, ResourceError
+from app.timeutils import agora_utc
 
 @app.route("/")
 def index():
@@ -1005,6 +1007,45 @@ def pomodoro():
         hoje=PomodoroService.resumo_do_dia(current_user.id),
         sessoes=PomodoroService.ultimas(current_user.id),
         limites=PomodoroSession,
+    )
+
+
+@app.route("/api/pomodoro/ativa", methods=["GET"])
+@api_student_required
+def api_sessao_ativa_pomodoro():
+    sessao = (
+        PomodoroSession.query.filter_by(
+            student_id=current_user.id, status="em_andamento"
+        )
+        .order_by(PomodoroSession.started_at.desc(), PomodoroSession.id.desc())
+        .first()
+    )
+    if sessao is None:
+        return jsonify(ok=True, active=False)
+
+    agora = agora_utc()
+    decorrido = (agora - sessao.started_at).total_seconds()
+    if sessao.tempo_completo(agora):
+        try:
+            pontos = PomodoroService.concluir(sessao, agora=agora)
+        except SessaoJaEncerrada:
+            return jsonify(ok=True, active=False)
+        return jsonify(
+            ok=True,
+            active=False,
+            completed=True,
+            points_awarded=pontos,
+            points_total=PointsService.total(current_user.id),
+            today=PomodoroService.resumo_do_dia(current_user.id),
+            history_html=_historico_html(),
+        )
+
+    restante = max(1, ceil(sessao.minutes * 60 - decorrido))
+    return jsonify(
+        ok=True,
+        active=True,
+        session={"id": sessao.id, "minutes": sessao.minutes},
+        remaining_seconds=restante,
     )
 
 

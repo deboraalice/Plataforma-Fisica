@@ -29,6 +29,8 @@
   var settingsModal = page.querySelector('[data-modal="settings"]');
   var settingsForm = page.querySelector('[data-settings-form]');
   var tituloOriginal = document.title;
+  var AudioAPI = window.AudioContext || window.webkitAudioContext;
+  var audioContext = null;
 
   /* ---- durações escolhidas (ficam salvas neste navegador) ---- */
   var limiteFoco = {
@@ -52,6 +54,49 @@
   }
 
   var config = carregarConfig();
+
+  function lerEstadoSalvo() {
+    try { return JSON.parse(localStorage.getItem(CHAVE)) || {}; } catch (e) { return {}; }
+  }
+
+  function salvarTimerSalvo(timer) {
+    try {
+      var salvo = lerEstadoSalvo();
+      if (timer) salvo.timer = timer;
+      else delete salvo.timer;
+      salvo.focus = config.focus;
+      salvo.pause = config.pause;
+      localStorage.setItem(CHAVE, JSON.stringify(salvo));
+    } catch (e) { /* armazenamento local indisponível */ }
+  }
+
+  function prepararAudio() {
+    if (!AudioAPI) return;
+    try {
+      if (!audioContext) audioContext = new AudioAPI();
+      if (audioContext.state === 'suspended') audioContext.resume().catch(function () {});
+    } catch (e) { /* áudio não disponível neste navegador */ }
+  }
+
+  function tocarAlerta() {
+    if (!audioContext || audioContext.state !== 'running') return;
+    try {
+      var agora = audioContext.currentTime;
+      [0, 0.24, 0.48].forEach(function (atraso, indice) {
+        var oscilador = audioContext.createOscillator();
+        var volume = audioContext.createGain();
+        oscilador.type = 'sine';
+        oscilador.frequency.value = indice === 1 ? 660 : 880;
+        volume.gain.setValueAtTime(0.0001, agora + atraso);
+        volume.gain.exponentialRampToValueAtTime(0.18, agora + atraso + 0.02);
+        volume.gain.exponentialRampToValueAtTime(0.0001, agora + atraso + 0.2);
+        oscilador.connect(volume);
+        volume.connect(audioContext.destination);
+        oscilador.start(agora + atraso);
+        oscilador.stop(agora + atraso + 0.21);
+      });
+    } catch (e) { /* o navegador pode bloquear áudio em segundo plano */ }
+  }
 
   /* ---- estado do cronômetro ---- */
   var estado = {
@@ -113,6 +158,7 @@
   function rodar() {
     estado.endsAt = Date.now() + estado.remaining * 1000;
     estado.running = true;
+    salvarTimerSalvo({ mode: estado.mode, remaining: estado.remaining, endsAt: estado.endsAt });
     pararRelogio();
     relogio = setInterval(tique, 250);
     desenhar();
@@ -122,10 +168,12 @@
     pararRelogio();
     estado.remaining = segundosRestantes();
     estado.running = false;
+    salvarTimerSalvo(null);
     desenhar();
   }
 
   function irPara(modo) {
+    salvarTimerSalvo(null);
     estado.mode = modo;
     estado.remaining = total();
     desenhar();
@@ -135,6 +183,7 @@
   function descartar() {
     pararRelogio();
     estado.running = false;
+    salvarTimerSalvo(null);
     if (estado.sessionId !== null) {
       FF.api('POST', '/api/pomodoro/' + estado.sessionId + '/cancelar');
       estado.sessionId = null;
@@ -143,6 +192,7 @@
 
   function alternar() {
     if (estado.busy) return;
+    prepararAudio();
     if (estado.running) { pausar(); return; }
 
     if (estado.mode === 'foco' && estado.sessionId === null) {
@@ -180,7 +230,9 @@
     pararRelogio();
     estado.running = false;
     estado.remaining = 0;
+    salvarTimerSalvo(null);
     desenhar();
+    tocarAlerta();
 
     if (estado.mode === 'descanso') {
       FF.toast('Descanso terminado. Hora de focar! 🎯', 'info');
@@ -215,9 +267,10 @@
     aba.addEventListener('click', function () { trocarModo(aba.dataset.modeTab); });
   });
 
-  // avisa antes de fechar a aba com o cronômetro rodando (a sessão seria perdida)
-  window.addEventListener('beforeunload', function (e) {
-    if (estado.running) { e.preventDefault(); e.returnValue = ''; }
+  // Recalcula pelo horário final ao retornar para a aba, mesmo se o navegador
+  // tiver pausado os intervalos enquanto ela ficou em segundo plano.
+  document.addEventListener('visibilitychange', function () {
+    if (document.visibilityState === 'visible' && estado.running) tique();
   });
 
   /* ---- configurações ---- */
@@ -257,5 +310,56 @@
     settingsModal.close();
   });
 
+  function atualizarResumo(res) {
+    page.querySelector('[data-stat="sessions"]').textContent = res.today.sessions;
+    page.querySelector('[data-stat="points"]').textContent = res.today.points;
+    page.querySelector('[data-history]').innerHTML = res.history_html;
+    FF.updatePoints(res.points_total);
+  }
+
+  function restaurarDescansoSalvo() {
+    var timer = lerEstadoSalvo().timer;
+    if (!timer || timer.mode !== 'descanso' || !timer.endsAt) {
+      desenhar();
+      return;
+    }
+    estado.mode = 'descanso';
+    estado.remaining = Math.max(0, Math.ceil((timer.endsAt - Date.now()) / 1000));
+    if (estado.remaining > 0) {
+      prepararAudio();
+      rodar();
+    } else {
+      tocarAlerta();
+      FF.toast('Seu descanso terminou enquanto você estava fora. Hora de focar! 🎯', 'info');
+      irPara('foco');
+    }
+  }
+
+  function restaurarSessao() {
+    FF.api('GET', '/api/pomodoro/ativa').then(function (res) {
+      if (!res.ok) { restaurarDescansoSalvo(); return; }
+      if (res.data.active && res.data.session) {
+        config.focus = res.data.session.minutes;
+        estado.mode = 'foco';
+        estado.sessionId = res.data.session.id;
+        estado.remaining = res.data.remaining_seconds;
+        prepararAudio();
+        rodar();
+        FF.toast('Sessão de foco retomada de onde parou.', 'info');
+        return;
+      }
+      if (res.data.completed) {
+        atualizarResumo(res.data);
+        prepararAudio();
+        tocarAlerta();
+        FF.toast('Sua sessão terminou enquanto você estava fora. +' + res.data.points_awarded + ' pontos! 🎯', 'points');
+        irPara('descanso');
+        return;
+      }
+      restaurarDescansoSalvo();
+    });
+  }
+
   desenhar();
+  restaurarSessao();
 })();
