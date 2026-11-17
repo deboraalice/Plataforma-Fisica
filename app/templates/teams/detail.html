@@ -8,7 +8,7 @@
 <div class="animate-fadeIn">
   <div class="page-header">
     <div>
-      <a class="dash-link" href="{{ url_for('turmas') }}">{{ icon('chevron-right', 14) }} Voltar às turmas</a>
+      <a class="dash-link" href="{{ url_for('turmas') }}">{{ icon('chevron-left', 14) }} Voltar às turmas</a>
       <h2 class="page-title" style="margin-top:10px;">{{ turma.nome }}</h2>
       {% if turma.archived_at %}<p class="page-sub">Turma arquivada</p>{% else %}<p class="page-sub">{{ alunos|length }} aluno{{ '' if alunos|length == 1 else 's' }} vinculados</p>{% endif %}
     </div>

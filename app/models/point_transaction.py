@@ -22,6 +22,7 @@ class PointTransaction(db.Model):
     TASK_COMPLETE = "task_complete"
     GOAL_COMPLETE = "goal_complete"
     TOPIC_COMPLETE = "topic_complete"
+    VIDEO_COMPLETE = "video_complete"
 
     id = db.Column(db.Integer, primary_key=True)
     amount = db.Column(db.Integer, nullable=False)

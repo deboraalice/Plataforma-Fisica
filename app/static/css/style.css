@@ -1538,7 +1538,7 @@ textarea#prompt:not(:placeholder-shown) { padding-top: 12px; text-align: left; }
 .physics-topic-actions .btn-soft:hover { background: linear-gradient(110deg, #4338CA, #3730A3); }
 .btn-simulator { background: linear-gradient(110deg, #06B6D4, #0891B2); }
 .btn-simulator:disabled { opacity: .65; cursor: not-allowed; }
-.btn-topic-complete { background: linear-gradient(110deg, #10B981, #059669); }
+.btn-topic-complete { background: linear-gradient(110deg, #10B981, #059669); color: #fff; }
 .btn-topic-complete:disabled { opacity: .8; cursor: default; }
 .physics-resource-section { margin: 24px 0; }
 .physics-resource-section > h3 { margin: 0 0 12px; color: var(--text); font-size: 16px; }

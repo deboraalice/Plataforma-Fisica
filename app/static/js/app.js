@@ -71,9 +71,11 @@
           window.location.href = '/login';
         }
         return res.json().catch(function () {
-          // resposta que não é JSON (ex.: token CSRF vencido = sessão expirada)
+          // HTML inesperado costuma significar rota não carregada ou erro no servidor.
           return res.ok ? {} : {
-            error: 'Sua sessão expirou. Recarregue a página e tente novamente.'
+            error: res.status === 404
+              ? 'A rota de pontuação não foi encontrada. Reinicie o servidor e recarregue a página.'
+              : 'O servidor não conseguiu registrar esta ação (erro ' + res.status + '). Recarregue a página e tente novamente.'
           };
         }).then(function (dados) {
           return { ok: res.ok, status: res.status, data: dados };
