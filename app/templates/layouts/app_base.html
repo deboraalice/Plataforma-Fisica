@@ -44,7 +44,7 @@
 
   <div class="sidebar-overlay" data-sidebar-overlay data-sidebar-close hidden></div>
 
-  <aside class="sidebar" data-sidebar>
+  <aside class="sidebar" id="main-sidebar" data-sidebar aria-label="Menu principal">
     <div class="brand">
       <a class="brand-link" href="{{ url_for('index') }}">
         <span class="brand-mark">{{ icon('atom', 18) }}</span>
@@ -86,7 +86,7 @@
 
   <div class="app-main">
     <header class="topbar">
-      <button type="button" class="topbar-menu" data-sidebar-open aria-label="Abrir menu">{{ icon('menu', 20) }}</button>
+      <button type="button" class="topbar-menu" data-sidebar-open aria-controls="main-sidebar" aria-expanded="false" aria-label="Abrir menu">{{ icon('menu', 20) }}</button>
       <h1 class="topbar-title">{% block page_title %}Dashboard{% endblock %}</h1>
 
       <div class="topbar-actions">

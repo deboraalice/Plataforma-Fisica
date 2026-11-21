@@ -10,10 +10,16 @@
     if (!sidebar) return;
     sidebar.classList.toggle('is-open', open);
     if (overlay) overlay.hidden = !open;
+    document.querySelectorAll('[data-sidebar-open]').forEach(function (btn) {
+      btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+      btn.setAttribute('aria-label', open ? 'Fechar menu' : 'Abrir menu');
+    });
   }
 
   document.querySelectorAll('[data-sidebar-open]').forEach(function (btn) {
-    btn.addEventListener('click', function () { setSidebar(true); });
+    btn.addEventListener('click', function () {
+      setSidebar(!sidebar || !sidebar.classList.contains('is-open'));
+    });
   });
   document.querySelectorAll('[data-sidebar-close]').forEach(function (el) {
     el.addEventListener('click', function () { setSidebar(false); });

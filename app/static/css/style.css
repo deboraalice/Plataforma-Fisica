@@ -635,8 +635,9 @@ a.nav-item:hover { background: var(--primary-soft); color: var(--primary); }
 }
 
 @media (min-width: 1024px) {
-  .sidebar { position: sticky; top: 0; height: 100vh; transform: none; flex-shrink: 0; }
-  .sidebar-close, .topbar-menu, .bottomnav, .sidebar-overlay { display: none !important; }
+  .sidebar { height: 100vh; }
+  .sidebar-close, .topbar-menu { display: flex; }
+  .bottomnav { display: none; }
   .topbar { padding: 0 24px; }
   .app-content { padding: 32px 32px 32px; }
   .toast-stack { bottom: 24px; }
