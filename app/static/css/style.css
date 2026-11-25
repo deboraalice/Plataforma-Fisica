@@ -401,12 +401,8 @@ button, input { font: inherit; }
 .auth-footer a:hover { text-decoration: underline; }
 
 @media (min-width: 1024px) {
-  .sidebar { height: 100vh; }
-  .sidebar-close, .topbar-menu { display: flex; }
-  .bottomnav { display: none; }
-  .topbar { padding: 0 24px; }
-  .app-content { padding: 32px; }
-  .toast-stack { bottom: 24px; }
+  .auth-hero { display: flex; }
+  .auth-brand-mobile { display: none; }
 }
 
 /* 7. LAYOUT DO APP ------------------------------------------------------ */
@@ -642,7 +638,6 @@ a.nav-item:hover { background: var(--primary-soft); color: var(--primary); }
 @media (min-width: 1024px) {
   .sidebar { height: 100vh; }
   .sidebar-close, .topbar-menu { display: flex; }
-
   .bottomnav { display: none; }
   .topbar { padding: 0 24px; }
   .app-content { padding: 32px; }
