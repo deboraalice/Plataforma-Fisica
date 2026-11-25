@@ -3,6 +3,17 @@ from app.models.professor import Professor
 
 class ProfessorService:
     @staticmethod
+    def salvar(formulario):
+        professor = Professor()
+        professor.name = formulario.name.data.strip()
+        professor.email = formulario.email.data.strip().lower()
+        professor.set_password(formulario.password.data)
+
+        db.session.add(professor)
+        db.session.commit()
+        return professor
+
+    @staticmethod
     def listar():
         return Professor.query.all()
 

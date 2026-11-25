@@ -17,6 +17,21 @@
 <form method="POST" action="{{ url_for('cadastrar_student') }}" class="form" novalidate data-loading-form>
   {{ formulario.hidden_tag() }}
 
+  <fieldset class="profile-fieldset">
+    <legend>Quero me cadastrar como</legend>
+    <div class="profile-options">
+      {% for opcao in formulario.perfil %}
+      <label class="profile-option">
+        {{ opcao }}
+        <span>{{ opcao.label.text }}</span>
+      </label>
+      {% endfor %}
+    </div>
+    {% for erro in formulario.perfil.errors %}
+    <p class="field-error">{{ erro }}</p>
+    {% endfor %}
+  </fieldset>
+
   {{ field(formulario.name, 'user', placeholder='Seu nome completo', autocomplete='name') }}
 
   <div>

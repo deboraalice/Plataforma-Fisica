@@ -170,7 +170,10 @@ def cadastrar_student():
     formulario = RegistrationForm()
 
     if formulario.validate_on_submit():
-        usuario = StudentService.salvar(formulario)
+        if formulario.perfil.data == "professor":
+            usuario = ProfessorService.salvar(formulario)
+        else:
+            usuario = StudentService.salvar(formulario)
         login_user(usuario)
         flash(f"Cadastro concluído! Bem-vindo(a), {usuario.name}.", "success")
         return redirect(url_for("index"))

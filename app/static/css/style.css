@@ -400,6 +400,28 @@ button, input { font: inherit; }
 .auth-footer a { font-weight: 600; text-decoration: none; }
 .auth-footer a:hover { text-decoration: underline; }
 
+.profile-fieldset { margin: 0; padding: 0; border: 0; }
+.profile-fieldset legend { margin-bottom: 8px; font-size: 14px; font-weight: 600; }
+.profile-options { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.profile-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--card);
+  cursor: pointer;
+}
+.profile-option:has(input:checked) {
+  border-color: var(--primary);
+  background: var(--primary-soft);
+  color: var(--primary);
+}
+.profile-option input { margin: 0; accent-color: var(--primary); }
+.profile-option:focus-within { outline: 2px solid var(--primary); outline-offset: 2px; }
+
 @media (min-width: 1024px) {
   .auth-hero { display: flex; }
   .auth-brand-mobile { display: none; }
