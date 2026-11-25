@@ -1,76 +1,111 @@
-from datetime import datetime
+from sqlalchemy.exc import IntegrityError
 
 from app import db
-from app.models.goal import Goal
+from app.models.goal import GoalClaim, StudentActivityDay
 from app.models.point_transaction import PointTransaction
+from app.services.GoalCatalog import CATALOGO, CATALOGO_POR_CHAVE
 from app.services.PointsService import PointsService
 
 
+class GoalError(Exception):
+    pass
+
 
 class GoalService:
-    """Toda consulta filtra por student_id: cada aluno só vê as próprias metas."""
+    """Metas globais: o catálogo é igual para todos; o progresso é por aluno."""
+
+    @staticmethod
+    def registrar_acesso(student_id, hoje):
+        """Marca o dia de hoje como 'aluno presente' (uma linha por dia)."""
+        existe = StudentActivityDay.query.filter_by(student_id=student_id, day=hoje).first()
+        if existe:
+            return
+        db.session.add(StudentActivityDay(student_id=student_id, day=hoje))
+        try:
+            db.session.commit()
+        except IntegrityError:  # duas abas ao mesmo tempo
+            db.session.rollback()
+
+    @staticmethod
+    def _resgatados(student_id):
+        mapa = {}
+        for c in GoalClaim.query.filter_by(student_id=student_id):
+            mapa.setdefault(c.goal_key, set()).add(c.tier)
+        return mapa
 
     @staticmethod
     def listar(student_id):
-        # em andamento primeiro (prazo mais próximo antes); concluídas no fim
-        return (
-            Goal.query.filter_by(student_id=student_id)
-            .order_by(Goal.status == "concluida", Goal.due_date, Goal.id)
-            .all()
-        )
-
-    @staticmethod
-    def buscar(goal_id, student_id):
-        return Goal.query.filter_by(id=goal_id, student_id=student_id).first()
+        resgatados = GoalService._resgatados(student_id)
+        cartoes = []
+        for meta in CATALOGO:
+            valor = meta.medir(student_id)
+            feitos = resgatados.get(meta.key, set())
+            degraus = [
+                {"alvo": alvo, "pontos": pontos,
+                 "resgatado": i in feitos, "atingido": valor >= alvo}
+                for i, (alvo, pontos) in enumerate(meta.degraus)
+            ]
+            atual = next((i for i, d in enumerate(degraus) if not d["resgatado"]), None)
+            completa = atual is None
+            degrau = degraus[-1 if completa else atual]
+            cartoes.append({
+                "key": meta.key,
+                "titulo": meta.titulo,
+                "descricao": meta.descricao,
+                "icone": meta.icone,
+                "unidade": meta.unidade,
+                "valor": valor,
+                "alvo": degrau["alvo"],
+                "pontos": degrau["pontos"],
+                "nivel": len(feitos),
+                "niveis": len(degraus),
+                "completa": completa,
+                "pronto": (not completa) and degrau["atingido"],
+                "prontos": sum(1 for d in degraus if d["atingido"] and not d["resgatado"]),
+                "pct": 100 if completa else min(100, round(valor / degrau["alvo"] * 100)),
+                "degraus": degraus,
+            })
+        # prontas para resgatar primeiro, depois em andamento, concluídas no fim
+        cartoes.sort(key=lambda c: (c["completa"], not c["pronto"], -c["pct"]))
+        return cartoes
 
     @staticmethod
     def contar(student_id):
-        metas = Goal.query.filter_by(student_id=student_id).all()
-        concluidas = sum(1 for m in metas if m.is_done)
+        cartoes = GoalService.listar(student_id)
+        total = sum(c["niveis"] for c in cartoes)
+        concluidas = sum(c["nivel"] for c in cartoes)
         return {
-            "todas": len(metas),
-            "abertas": len(metas) - concluidas,
+            "todas": total,
             "concluidas": concluidas,
+            "abertas": total - concluidas,
+            "prontas": sum(c["prontos"] for c in cartoes),
         }
 
     @staticmethod
-    def criar(student_id, formulario):
-        goal = Goal(student_id=student_id)
-        GoalService._preencher(goal, formulario)
-        db.session.add(goal)
-        db.session.commit()
-        return goal
+    def resgatar(student_id, key):
+        """Resgata todos os degraus já atingidos de uma meta. Devolve os pontos ganhos."""
+        meta = CATALOGO_POR_CHAVE.get(key)
+        if meta is None:
+            raise GoalError("Meta não encontrada.")
 
-    @staticmethod
-    def atualizar(goal, formulario):
-        GoalService._preencher(goal, formulario)
-        db.session.commit()
-        return goal
-
-    @staticmethod
-    def concluir(goal):
-        # concluir é definitivo (como no protótipo); repetir não muda nada
-        if not goal.is_done:
-            goal.status = "concluida"
-            goal.completed_at = datetime.utcnow()
-            ja_pontuada = PointTransaction.query.filter_by(
-                reason=PointTransaction.GOAL_COMPLETE,
-                ref_id=goal.id,
-            ).first()
-            if ja_pontuada is None:
-                PointsService.conceder(
-                    goal.student_id, 100, PointTransaction.GOAL_COMPLETE, goal.id
-                )
+        valor = meta.medir(student_id)
+        feitos = GoalService._resgatados(student_id).get(key, set())
+        total = 0
+        try:
+            for i, (alvo, pontos) in enumerate(meta.degraus):
+                if i in feitos or valor < alvo:
+                    continue
+                claim = GoalClaim(student_id=student_id, goal_key=key, tier=i,
+                                  points_awarded=pontos)
+                db.session.add(claim)
+                db.session.flush()  # gera o id, usado como ref_id (único por resgate)
+                PointsService.conceder(student_id, pontos, PointTransaction.GOAL_TIER, claim.id)
+                total += pontos
             db.session.commit()
-        return goal
+        except IntegrityError:
+            db.session.rollback()
+            raise GoalError("Esta recompensa já foi resgatada.")
 
-    @staticmethod
-    def remover(goal):
-        db.session.delete(goal)
-        db.session.commit()
-
-    @staticmethod
-    def _preencher(goal, formulario):
-        goal.title = formulario.title.data
-        goal.type = formulario.type.data
-        goal.due_date = formulario.prazo
+        if total == 0:
+            raise GoalError("Esta meta ainda não atingiu o próximo degrau.")
+        return total

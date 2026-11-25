@@ -20,7 +20,8 @@ class PointTransaction(db.Model):
     QUIZ_FIRST = "quiz_first"
     QUIZ_MASTERY = "quiz_mastery"
     TASK_COMPLETE = "task_complete"
-    GOAL_COMPLETE = "goal_complete"
+    GOAL_COMPLETE = "goal_complete"  # metas antigas (ref_id = Goal.id)
+    GOAL_TIER = "goal_tier"          # metas globais (ref_id = GoalClaim.id)
     TOPIC_COMPLETE = "topic_complete"
 
     id = db.Column(db.Integer, primary_key=True)

@@ -1,5 +1,5 @@
 from flask_wtf import FlaskForm
-from wtforms import StringField, PasswordField, SelectField, SubmitField
+from wtforms import StringField, PasswordField, SubmitField
 from wtforms.validators import DataRequired, Email, Length, EqualTo, ValidationError
 
 from app.services.StudentService import StudentService
@@ -7,15 +7,6 @@ from app.services.ProfessorService import ProfessorService
 
 
 class RegistrationForm(FlaskForm):
-    profile_type = SelectField(
-        "Tipo de perfil",
-        choices=[
-            ("", "Selecione seu perfil"),
-            ("student", "Aluno"),
-            ("professor", "Professor"),
-        ],
-        validators=[DataRequired(message="Escolha o tipo de perfil.")],
-    )
     name = StringField(
         "Nome completo",
         validators=[

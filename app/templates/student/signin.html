@@ -5,7 +5,7 @@
 
 {% block auth_content %}
 <h2 class="auth-title">Criar conta</h2>
-<p class="auth-subtitle">Escolha seu perfil e comece na FísicaFlow</p>
+<p class="auth-subtitle">Crie sua conta e comece na FísicaFlow</p>
 
 {# Alunos e professores do IF não precisam preencher o cadastro #}
 <a href="{{ url_for('login_suap') }}" class="btn btn-secondary btn-block">
@@ -17,7 +17,6 @@
 <form method="POST" action="{{ url_for('cadastrar_student') }}" class="form" novalidate data-loading-form>
   {{ formulario.hidden_tag() }}
 
-  {{ field(formulario.profile_type, 'user') }}
   {{ field(formulario.name, 'user', placeholder='Seu nome completo', autocomplete='name') }}
 
   <div>
@@ -37,7 +36,7 @@
   </div>
 
   <div>
-    {{ field(formulario.password, 'lock', placeholder='Mínimo 8 caracteres', autocomplete='new-password', toggle=True) }}
+    {{ field(formulario.password, 'lock', placeholder='Mínimo 6 caracteres', autocomplete='new-password', toggle=True) }}
     <div class="strength" data-strength="{{ formulario.password.id }}" hidden>
       <div class="strength-bars"><span></span><span></span><span></span><span></span></div>
       <p class="strength-label"></p>

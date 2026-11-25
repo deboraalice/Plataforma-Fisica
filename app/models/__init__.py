@@ -16,7 +16,7 @@ from .physics import (
     FirstQuizCompletion,
 )
 from .task import Task
-from .goal import Goal
+from .goal import Goal, GoalClaim, StudentActivityDay
 from .schedule_item import ScheduleItem
 from .point_transaction import PointTransaction
 from .pomodoro_session import PomodoroSession

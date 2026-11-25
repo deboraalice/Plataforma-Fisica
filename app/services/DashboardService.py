@@ -1,7 +1,6 @@
 from datetime import date, datetime, timedelta, timezone
 from zoneinfo import ZoneInfo
 
-from app.models.goal import Goal
 from app.models.pomodoro_session import PomodoroSession
 from app.models.task import Task
 from app.services.GoalService import GoalService
@@ -14,6 +13,7 @@ FUSO = ZoneInfo("America/Sao_Paulo")
 DIAS_CURTOS = ["Seg", "Ter", "Qua", "Qui", "Sex", "Sáb", "Dom"]
 MESES = ["jan", "fev", "mar", "abr", "mai", "jun",
          "jul", "ago", "set", "out", "nov", "dez"]
+
 
 def _formatar_data_curta(d):
     return f"{d.day} {MESES[d.month - 1]}"
@@ -158,13 +158,16 @@ class DashboardService:
 
     @staticmethod
     def prazo_das_metas(student_id):
-        abertas = [
-            g for g in GoalService.listar(student_id) if not g.is_done and g.due_date
-        ]
+        """Texto do card de metas: o que resgatar ou qual é a próxima meta."""
+        cartoes = GoalService.listar(student_id)
+        prontas = sum(c["prontos"] for c in cartoes)
+        if prontas:
+            return f"{prontas} recompensa(s) para resgatar"
+        abertas = [c for c in cartoes if not c["completa"]]
         if not abertas:
-            return "Nenhuma meta em aberto"
-        proxima = min(_para_data(g.due_date) for g in abertas)
-        return f"Prazo: {_formatar_data_curta(proxima)}"
+            return "Todas as metas concluídas 🎉"
+        c = max(abertas, key=lambda c: c["pct"])
+        return f"Próxima: {c['alvo']} {c['unidade']}"
 
     @staticmethod
     def montar(student):

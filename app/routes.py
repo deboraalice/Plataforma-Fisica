@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date, datetime
 from math import ceil
 from pathlib import Path
 from secrets import token_hex, token_urlsafe
@@ -20,7 +20,6 @@ from app import app, db
 from app.forms.login_form import LoginForm
 from app.forms.student_form import RegistrationForm
 from app.forms.task_form import TaskForm
-from app.forms.goal_form import GoalForm
 from app.forms.schedule_form import ScheduleForm
 from app.forms.pomodoro_form import PomodoroForm
 from app.forms.physics_form import (
@@ -32,32 +31,32 @@ from app.forms.physics_form import (
 )
 from app.decorators import api_student_required, professor_required, student_required
 from app.models.task import Task
-from app.models.goal import Goal
 from app.models.schedule_item import ScheduleItem
 from app.models.student import Student
 from app.models.pomodoro_session import PomodoroSession
 from app.models.physics import Quiz, QuizOption, QuizQuestion, PhysicsTopic
 from app.services.TaskService import TaskService
-from app.services.GoalService import GoalService
+from app.services.GoalService import GoalService, GoalError
 from app.services.ScheduleService import ScheduleService
 from app.services.PointsService import PointsService
 from app.services.PomodoroService import PomodoroService, PomodoroError, SessaoJaEncerrada
 from app.services.StudentService import StudentService
 from app.services.ProfessorService import ProfessorService
 from app.services.AuthService import AuthService, SuapAuthError
-from app.services.DashboardService import DashboardService
+from app.services.DashboardService import DashboardService, FUSO
 from app.services.QuizService import QuizService, QuizError
 from app.services.PhysicsService import PhysicsService
 from app.services.PhysicsResourceService import PhysicsResourceService, ResourceError
 from app.services.RankingService import RankingService
 from app.timeutils import agora_utc
 
+
 @app.route("/")
 def index():
     # visitantes vão direto para o login; quem já entrou vê o painel
     if not current_user.is_authenticated:
         return redirect(url_for("login"))
- 
+
     usuario = current_user._get_current_object()
     # só alunos têm painel de estudos; professores veem uma mensagem simples
     dados = DashboardService.montar(usuario) if isinstance(usuario, Student) else None
@@ -69,32 +68,32 @@ def index():
 def ranking():
     dados = RankingService.dados_da_pagina(current_user.id)
     return render_template("ranking/index.html", **dados)
- 
- 
+
+
 @app.route("/login", methods=["GET", "POST"])
 def login():
     if current_user.is_authenticated:
         return redirect(url_for("index"))
- 
+
     formulario = LoginForm()
- 
+
     if formulario.validate_on_submit():
         email = formulario.email.data
- 
+
         usuario = StudentService.buscar_por_email(email) or \
             ProfessorService.buscar_por_email(email)
- 
+
         if usuario is None or not usuario.check_password(formulario.password.data):
             flash("E-mail ou senha inválidos.", "danger")
             return render_template("auth/login.html", formulario=formulario)
- 
+
         login_user(usuario)
         flash(f"Bem-vindo(a), {usuario.name}!", "success")
         return redirect(url_for("index"))
- 
+
     return render_template("auth/login.html", formulario=formulario)
- 
- 
+
+
 @app.route("/login/suap")
 def login_suap():
     state = token_urlsafe(32)
@@ -110,22 +109,22 @@ def login_suap():
             "warning",
         )
         return redirect(url_for("login"))
- 
+
     return redirect(authorization_url)
- 
- 
+
+
 @app.route("/login/suap/callback")
 def login_suap_callback():
     state = session.pop("suap_oauth_state", None)
- 
+
     if state is None or state != request.args.get("state"):
         flash("Sessão de login com o SUAP inválida ou expirada. Tente novamente.", "danger")
         return redirect(url_for("login"))
- 
+
     if request.args.get("error"):
         flash("Login com o SUAP cancelado.", "warning")
         return redirect(url_for("login"))
- 
+
     code = request.args.get("code")
     if not code:
         flash("O SUAP não enviou o código de autorização. Tente novamente.", "danger")
@@ -137,7 +136,7 @@ def login_suap_callback():
     except SuapAuthError as e:
         flash(str(e), "danger")
         return redirect(url_for("login"))
- 
+
     if dados_suap["tipo_vinculo"] == "Aluno":
         usuario = StudentService.criar_ou_atualizar_via_suap(dados_suap)
     elif dados_suap["tipo_vinculo"] == "Servidor":
@@ -148,38 +147,33 @@ def login_suap_callback():
             "danger",
         )
         return redirect(url_for("login"))
- 
+
     login_user(usuario)
     flash(f"Bem-vindo(a), {usuario.name}!", "success")
     return redirect(url_for("index"))
- 
- 
+
+
 @app.route("/logout")
 @login_required
 def logout():
     logout_user()
     flash("Você saiu da plataforma.", "info")
     return redirect(url_for("index"))
- 
- 
+
+
 @app.route("/student/cadastrar", methods=["GET", "POST"])
 def cadastrar_student():
     if current_user.is_authenticated:
         return redirect(url_for("index"))
- 
+
     formulario = RegistrationForm()
- 
+
     if formulario.validate_on_submit():
-        if formulario.profile_type.data == "professor":
-            usuario = ProfessorService.salvar(formulario)
-            papel = "professor"
-        else:
-            usuario = StudentService.salvar(formulario)
-            papel = "aluno"
+        usuario = StudentService.salvar(formulario)
         login_user(usuario)
-        flash(f"Cadastro de {papel} concluído! Bem-vindo(a), {usuario.name}.", "success")
+        flash(f"Cadastro concluído! Bem-vindo(a), {usuario.name}.", "success")
         return redirect(url_for("index"))
- 
+
     return render_template("student/signin.html", formulario=formulario)
 
 
@@ -796,25 +790,37 @@ def api_excluir_tarefa(task_id):
 
 
 # ---------------------------------------------------------------------------
-# Metas
-#   /metas                 -> página (HTML renderizado pelo Jinja)
-#   /api/metas/...         -> rotas JSON chamadas via AJAX (fetch) pela página
+# Metas globais
+#   /metas                      -> página (HTML renderizado pelo Jinja)
+#   /api/metas/<key>/resgatar   -> resgata os degraus atingidos de uma meta
+#
+# O catálogo de metas é igual para todos os alunos (ver GoalCatalog.py) e o
+# progresso é calculado a partir da atividade do aluno na plataforma.
 # ---------------------------------------------------------------------------
 
-def _resposta_meta(goal, status=200, points_awarded=0):
-    """JSON com a meta, o card já renderizado (Jinja) e os contadores."""
+@app.before_request
+def registrar_acesso_diario():
+    """Alimenta a meta de presença: no máximo uma escrita por dia por sessão."""
+    if request.endpoint in (None, "static") or not current_user.is_authenticated:
+        return
+    usuario = current_user._get_current_object()
+    if not isinstance(usuario, Student):
+        return
+    hoje = datetime.now(FUSO).date()
+    if session.get("ultimo_acesso") == hoje.isoformat():
+        return
+    GoalService.registrar_acesso(usuario.id, hoje)
+    session["ultimo_acesso"] = hoje.isoformat()
+
+
+def _resposta_metas(points_awarded=0):
     return jsonify(
         ok=True,
-        goal=goal.to_dict(),
-        html=render_template("goals/_goal_card.html", g=goal),
+        html=render_template("goals/_lista.html", metas=GoalService.listar(current_user.id)),
         counts=GoalService.contar(current_user.id),
         points_total=PointsService.total(current_user.id),
         points_awarded=points_awarded,
-    ), status
-
-
-def _meta_nao_encontrada():
-    return jsonify(ok=False, error="Meta não encontrada."), 404
+    )
 
 
 @app.route("/metas")
@@ -822,65 +828,19 @@ def _meta_nao_encontrada():
 def metas():
     return render_template(
         "goals/index.html",
-        goals=GoalService.listar(current_user.id),
+        metas=GoalService.listar(current_user.id),
         counts=GoalService.contar(current_user.id),
-        tipos=Goal.TIPOS,
     )
 
 
-@app.route("/api/metas", methods=["POST"])
+@app.route("/api/metas/<key>/resgatar", methods=["POST"])
 @api_student_required
-def api_criar_meta():
-    if not isinstance(request.get_json(silent=True), dict):
-        return jsonify(ok=False, error="Envie os dados em formato JSON."), 400
-
-    formulario = GoalForm()
-    if not formulario.validate():
-        return _erros_do_formulario(formulario)
-
-    goal = GoalService.criar(current_user.id, formulario)
-    return _resposta_meta(goal, 201)
-
-
-@app.route("/api/metas/<int:goal_id>", methods=["PUT"])
-@api_student_required
-def api_editar_meta(goal_id):
-    goal = GoalService.buscar(goal_id, current_user.id)
-    if goal is None:
-        return _meta_nao_encontrada()
-
-    if not isinstance(request.get_json(silent=True), dict):
-        return jsonify(ok=False, error="Envie os dados em formato JSON."), 400
-
-    formulario = GoalForm()
-    if not formulario.validate():
-        return _erros_do_formulario(formulario)
-
-    GoalService.atualizar(goal, formulario)
-    return _resposta_meta(goal)
-
-
-@app.route("/api/metas/<int:goal_id>/concluir", methods=["PATCH"])
-@api_student_required
-def api_concluir_meta(goal_id):
-    goal = GoalService.buscar(goal_id, current_user.id)
-    if goal is None:
-        return _meta_nao_encontrada()
-
-    era_concluida = goal.is_done
-    GoalService.concluir(goal)
-    return _resposta_meta(goal, points_awarded=0 if era_concluida else 100)
-
-
-@app.route("/api/metas/<int:goal_id>", methods=["DELETE"])
-@api_student_required
-def api_excluir_meta(goal_id):
-    goal = GoalService.buscar(goal_id, current_user.id)
-    if goal is None:
-        return _meta_nao_encontrada()
-
-    GoalService.remover(goal)
-    return jsonify(ok=True, counts=GoalService.contar(current_user.id))
+def api_resgatar_meta(key):
+    try:
+        pontos = GoalService.resgatar(current_user.id, key)
+    except GoalError as erro:
+        return jsonify(ok=False, error=str(erro)), 409
+    return _resposta_metas(points_awarded=pontos)
 
 
 # ---------------------------------------------------------------------------
@@ -888,7 +848,7 @@ def api_excluir_meta(goal_id):
 #   /cronograma            -> página (HTML renderizado pelo Jinja)
 #   /api/cronograma/...    -> rotas JSON chamadas via AJAX (fetch) pela página
 #
-# Diferente de Tarefas e Metas, a resposta da API traz o QUADRO inteiro já
+# Diferente de Tarefas, a resposta da API traz o QUADRO inteiro já
 # renderizado (grade da semana + lista por dia), porque adicionar ou mover um
 # bloco muda a posição de vários elementos na tela.
 # ---------------------------------------------------------------------------

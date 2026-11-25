@@ -1,0 +1,34 @@
+{% for m in metas %}
+<article class="card gm {% if m.pronto %}is-ready{% elif m.completa %}is-maxed{% endif %}"
+         data-goal-key="{{ m.key }}">
+  <header class="gm-top">
+    <span class="gm-icon" aria-hidden="true">{{ m.icone }}</span>
+    <div class="gm-text">
+      <h3 class="gm-title">{{ m.titulo }}</h3>
+      <p class="gm-desc">{{ m.descricao }}</p>
+    </div>
+    <span class="chip chip-subject">Nível {{ m.nivel }}/{{ m.niveis }}</span>
+  </header>
+
+  <div class="gm-progress">
+    <div class="dash-progress-track"><div class="dash-progress-fill" style="width: {{ m.pct }}%"></div></div>
+    <small class="gm-progress-text">
+      {% if m.completa %}Meta máxima atingida 🏆
+      {% else %}{{ m.valor if m.valor < m.alvo else m.alvo }} / {{ m.alvo }} {{ m.unidade }} · +{{ m.pontos }} pts
+      {% endif %}
+    </small>
+  </div>
+
+  <ol class="gm-tiers">
+    {% for d in m.degraus %}
+      <li class="{{ 'is-done' if d.resgatado else 'is-ready' if d.atingido else '' }}">{{ d.alvo }}</li>
+    {% endfor %}
+  </ol>
+
+  {% if m.pronto %}
+    <button type="button" class="btn btn-primary btn-block" data-claim>
+      Resgatar{% if m.prontos > 1 %} ({{ m.prontos }} degraus){% endif %}
+    </button>
+  {% endif %}
+</article>
+{% endfor %}
