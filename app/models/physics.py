@@ -135,6 +135,28 @@ class PhysicsResource(db.Model):
         return f"https://www.youtube.com/embed/{self.youtube_video_id}"
 
 
+class VideoWatch(db.Model):
+    """Progresso e recompensa única de vídeo por aluno."""
+
+    __tablename__ = "video_watch"
+    __table_args__ = (
+        db.UniqueConstraint("student_id", "youtube_video_id", name="uq_video_watch_student_youtube_video"),
+    )
+
+    id = db.Column(db.Integer, primary_key=True)
+    student_id = db.Column(db.Integer, db.ForeignKey("student.id"), nullable=False, index=True)
+    resource_id = db.Column(db.Integer, db.ForeignKey("physics_resource.id"), nullable=False, index=True)
+    youtube_video_id = db.Column(db.String(11), nullable=False)
+    watched_seconds = db.Column(db.Float, nullable=False, default=0)
+    duration = db.Column(db.Float, nullable=False, default=0)
+    last_position = db.Column(db.Float, nullable=False, default=0)
+    last_ping_at = db.Column(db.DateTime, nullable=False, default=agora_utc)
+    completed_at = db.Column(db.DateTime, nullable=True)
+
+    student = db.relationship("Student")
+    resource = db.relationship("PhysicsResource")
+
+
 class QuizQuestion(db.Model):
     __tablename__ = "quiz_question"
 
@@ -184,6 +206,26 @@ class QuizAttempt(db.Model):
         lazy="dynamic",
         cascade="all, delete-orphan",
     )
+
+
+class QuizCompletion(db.Model):
+    """Conclusão única de cada simulado por aluno."""
+
+    __tablename__ = "quiz_completion"
+    __table_args__ = (
+        db.UniqueConstraint("student_id", "quiz_id", name="uq_quiz_completion_student_quiz"),
+    )
+
+    id = db.Column(db.Integer, primary_key=True)
+    student_id = db.Column(db.Integer, db.ForeignKey("student.id"), nullable=False, index=True)
+    quiz_id = db.Column(db.Integer, db.ForeignKey("quiz.id"), nullable=False, index=True)
+    attempt_id = db.Column(db.Integer, db.ForeignKey("quiz_attempt.id"), nullable=False)
+    completed_at = db.Column(db.DateTime, nullable=False, default=agora_utc)
+    points_awarded = db.Column(db.Integer, nullable=False, default=0)
+
+    student = db.relationship("Student")
+    quiz = db.relationship("Quiz")
+    attempt = db.relationship("QuizAttempt")
 
 
 class QuizAnswer(db.Model):

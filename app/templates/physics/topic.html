@@ -54,9 +54,8 @@
         {% if resource.description %}<p>{{ resource.description }}</p>{% endif %}
         {% if resource.youtube_video_id %}
           <div class="physics-video-frame">
-            <iframe src="{{ resource.youtube_embed_url }}" title="{{ resource.title }}" loading="lazy" referrerpolicy="strict-origin-when-cross-origin" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
+            <iframe id="video-player-{{ resource.id }}" data-youtube-watch data-resource-id="{{ resource.id }}" src="{{ resource.youtube_embed_url }}?enablejsapi=1&origin={{ request.host_url.rstrip('/')|urlencode }}" title="{{ resource.title }}" loading="lazy" referrerpolicy="strict-origin-when-cross-origin" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
           </div>
-          <a class="physics-resource-fallback" href="{{ resource.url }}" target="_blank" rel="noopener noreferrer">Se o player não abrir, assistir no YouTube.</a>
         {% else %}
           <a href="{{ resource.url }}" target="_blank" rel="noopener noreferrer">Abrir material {{ icon('chevron-right', 14) }}</a>
         {% endif %}
@@ -73,7 +72,11 @@
         <h4>{{ simulado.title }}</h4>
         <p>{{ simulado.questions.count() }} questões · {{ simulado.points_per_correct }} ponto{{ '' if simulado.points_per_correct == 1 else 's' }} por acerto</p>
         {% if pode_concluir %}
-          <a class="btn btn-primary" href="{{ url_for('responder_simulado', quiz_id=simulado.id) }}">Responder simulado</a>
+          {% if simulado.id in simulados_concluidos %}
+            <a class="btn btn-topic-complete" href="{{ url_for('responder_simulado', quiz_id=simulado.id) }}">{{ icon('check-circle', 17) }} Simulado concluído · Ver desempenho</a>
+          {% else %}
+            <a class="btn btn-primary" href="{{ url_for('responder_simulado', quiz_id=simulado.id) }}">Responder simulado</a>
+          {% endif %}
         {% endif %}
       </article>
     {% endfor %}
@@ -104,5 +107,6 @@
     {% endif %}
   </div>
 </article>
+{% if pode_concluir %}<script src="{{ url_for('static', filename='js/video_watch.js') }}" defer></script>{% endif %}
 {% endblock %}
 

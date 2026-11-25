@@ -10,10 +10,16 @@
     if (!sidebar) return;
     sidebar.classList.toggle('is-open', open);
     if (overlay) overlay.hidden = !open;
+    document.querySelectorAll('[data-sidebar-open]').forEach(function (btn) {
+      btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+      btn.setAttribute('aria-label', open ? 'Fechar menu' : 'Abrir menu');
+    });
   }
 
   document.querySelectorAll('[data-sidebar-open]').forEach(function (btn) {
-    btn.addEventListener('click', function () { setSidebar(true); });
+    btn.addEventListener('click', function () {
+      setSidebar(!sidebar || !sidebar.classList.contains('is-open'));
+    });
   });
   document.querySelectorAll('[data-sidebar-close]').forEach(function (el) {
     el.addEventListener('click', function () { setSidebar(false); });
@@ -71,9 +77,11 @@
           window.location.href = '/login';
         }
         return res.json().catch(function () {
-          // resposta que não é JSON (ex.: token CSRF vencido = sessão expirada)
+          // HTML inesperado costuma significar rota não carregada ou erro no servidor.
           return res.ok ? {} : {
-            error: 'Sua sessão expirou. Recarregue a página e tente novamente.'
+            error: res.status === 404
+              ? 'A rota de pontuação não foi encontrada. Reinicie o servidor e recarregue a página.'
+              : 'O servidor não conseguiu registrar esta ação (erro ' + res.status + '). Recarregue a página e tente novamente.'
           };
         }).then(function (dados) {
           return { ok: res.ok, status: res.status, data: dados };

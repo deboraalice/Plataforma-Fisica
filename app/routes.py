@@ -34,7 +34,8 @@ from app.models.task import Task
 from app.models.schedule_item import ScheduleItem
 from app.models.student import Student
 from app.models.pomodoro_session import PomodoroSession
-from app.models.physics import Quiz, QuizOption, QuizQuestion, PhysicsTopic
+from app.models.physics import Quiz, QuizAnswer, QuizAttempt, QuizCompletion, QuizOption, QuizQuestion, PhysicsTopic, PhysicsResource, VideoWatch
+from app.models.point_transaction import PointTransaction
 from app.services.TaskService import TaskService
 from app.services.GoalService import GoalService, GoalError
 from app.services.ScheduleService import ScheduleService
@@ -212,6 +213,9 @@ def topico_fisica(slug):
         .order_by(Quiz.id.desc())
         .all()
     )
+    simulados_concluidos = {
+        item.quiz_id for item in QuizCompletion.query.filter_by(student_id=student_id).all()
+    } if student_id is not None else set()
     return render_template(
         "physics/topic.html",
         topico=topico,
@@ -219,7 +223,60 @@ def topico_fisica(slug):
         pode_concluir=isinstance(usuario, Student),
         recursos=recursos,
         simulados=simulados,
+        simulados_concluidos=simulados_concluidos,
     )
+
+
+@app.route("/api/fisica/videos/<int:resource_id>/progresso", methods=["POST"])
+@api_student_required
+def progresso_video_fisica(resource_id):
+    """Conta apenas reprodução contínua plausível e premia uma vez por aluno/vídeo."""
+    resource = db.session.get(PhysicsResource, resource_id)
+    if resource is None or not resource.is_active or not resource.youtube_video_id:
+        return jsonify(ok=False, error="Vídeo não encontrado."), 404
+    data = request.get_json(silent=True) or {}
+    try:
+        position = float(data.get("position"))
+        duration = float(data.get("duration"))
+    except (TypeError, ValueError):
+        return jsonify(ok=False, error="Progresso inválido."), 400
+    if duration < 1 or duration > 86400 or position < 0 or position > duration + 2:
+        return jsonify(ok=False, error="Progresso inválido."), 400
+
+    agora = agora_utc()
+    watch = VideoWatch.query.filter_by(
+        student_id=current_user.id, youtube_video_id=resource.youtube_video_id
+    ).first()
+    if watch is None:
+        watch = VideoWatch(student_id=current_user.id, resource_id=resource.id,
+                           youtube_video_id=resource.youtube_video_id,
+                           last_position=position, duration=duration, last_ping_at=agora)
+        db.session.add(watch)
+        db.session.commit()
+        return jsonify(ok=True, completed=False, watched=0, required=duration * 0.9)
+    if watch.completed_at:
+        return jsonify(ok=True, completed=True, already_awarded=True,
+                       points_total=PointsService.total(current_user.id))
+
+    elapsed = max(0.0, min((agora - watch.last_ping_at).total_seconds(), 8.0))
+    advance = position - watch.last_position
+    # Saltos, retrocessos e mudanças bruscas de duração não contam como tempo assistido.
+    if 0 <= advance <= elapsed * 1.5 + 2 and abs(duration - watch.duration) < max(5, duration * 0.02):
+        watch.watched_seconds = min(duration, watch.watched_seconds + min(elapsed, max(0, advance)))
+    watch.last_position = position
+    watch.last_ping_at = agora
+    ended = bool(data.get("ended"))
+    required = duration * 0.9
+    if ended and position >= duration - 2 and watch.watched_seconds >= required:
+        watch.completed_at = agora
+        points = 10
+        PointsService.conceder(current_user.id, points, PointTransaction.VIDEO_COMPLETE, watch.id)
+        db.session.commit()
+        return jsonify(ok=True, completed=True, awarded=points,
+                       points_total=PointsService.total(current_user.id))
+    db.session.commit()
+    return jsonify(ok=True, completed=False, watched=round(watch.watched_seconds),
+                   required=round(required))
 
 
 @app.route("/fisica/topicos/<slug>/concluir", methods=["POST"])
@@ -628,6 +685,40 @@ def editar_questao_simulado(quiz_id, question_id):
 @student_required
 def responder_simulado(quiz_id):
     simulado = Quiz.query.filter_by(id=quiz_id, is_active=True).first_or_404()
+    conclusao = QuizCompletion.query.filter_by(student_id=current_user.id, quiz_id=simulado.id).first()
+    if conclusao:
+        tentativa = db.session.get(QuizAttempt, conclusao.attempt_id)
+        questoes = simulado.questions.order_by(QuizQuestion.position, QuizQuestion.id).all()
+        respostas = {
+            resposta.question_id: resposta
+            for resposta in QuizAnswer.query.filter_by(attempt_id=conclusao.attempt_id).all()
+        }
+        detalhes_respostas = []
+        for questao in questoes:
+            resposta = respostas.get(questao.id)
+            opcoes = questao.options.order_by(QuizOption.position, QuizOption.id).all()
+            marcada = db.session.get(QuizOption, resposta.selected_option_id) if resposta and resposta.selected_option_id else None
+            correta = next((opcao for opcao in opcoes if opcao.is_correct), None)
+            detalhes_respostas.append({
+                "questao": questao,
+                "marcada": marcada,
+                "correta": correta,
+                "explicacao": questao.explanation,
+                "acertou": bool(resposta and resposta.is_correct),
+            })
+        return render_template(
+            "physics/quiz_take.html",
+            simulado=simulado,
+            questoes=questoes,
+            formulario_acao=ActionForm(),
+            respostas_marcadas={},
+            resultado={
+                "correct_count": tentativa.correct_count,
+                "question_count": tentativa.question_count,
+                "points_awarded": conclusao.points_awarded,
+            },
+            detalhes_respostas=detalhes_respostas,
+        )
     questoes = simulado.questions.order_by(QuizQuestion.position, QuizQuestion.id).all()
     if not questoes:
         flash("Este simulado ainda não tem questões.", "warning")

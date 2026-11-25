@@ -3,7 +3,7 @@ from sqlalchemy.exc import IntegrityError
 from app import db
 from app.models.physics import (
     FirstQuestionScore,
-    FirstQuizCompletion,
+    FirstQuizCompletion, QuizCompletion,
     Quiz,
     QuizAnswer,
     QuizAttempt,
@@ -29,6 +29,8 @@ class QuizService:
             raise QuizError("Este quiz não está disponível.")
         if not quiz.questions.first():
             raise QuizError("Este quiz ainda não tem questões.")
+        if QuizCompletion.query.filter_by(student_id=student_id, quiz_id=quiz.id).first():
+            raise QuizError("Você já concluiu este simulado. Cada simulado só pode ser concluído uma vez.")
 
         tentativa = QuizAttempt(student_id=student_id, quiz_id=quiz.id)
         db.session.add(tentativa)
@@ -71,6 +73,20 @@ class QuizService:
             if alternativa is None or alternativa.question_id != question_id:
                 raise QuizError("Uma alternativa não pertence à questão correspondente.")
             respostas_normalizadas[question_id] = alternativa
+
+        conclusao = QuizCompletion(
+            student_id=student_id,
+            quiz_id=tentativa.quiz_id,
+            attempt_id=tentativa.id,
+            completed_at=agora_utc(),
+            points_awarded=0,
+        )
+        try:
+            with db.session.begin_nested():
+                db.session.add(conclusao)
+                db.session.flush()
+        except IntegrityError:
+            raise QuizError("Você já concluiu este simulado. Cada simulado só pode ser concluído uma vez.")
 
         correct_count = 0
         points_awarded = 0
@@ -160,6 +176,8 @@ class QuizService:
                 except IntegrityError:
                     # Um envio concorrente já concedeu este bônus para o quiz.
                     pass
+
+        conclusao.points_awarded = points_awarded
 
         db.session.commit()
 

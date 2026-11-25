@@ -13,7 +13,7 @@ app = Flask(__name__)
 app.config.from_object(Config)
 
 db = SQLAlchemy(app)
-migrate = Migrate(app, db) 
+migrate = Migrate(app, db)
 csrf = CSRFProtect(app)
 
 login_manager = LoginManager(app)
@@ -82,12 +82,75 @@ def _upgrade_quiz_image_schema():
             )
     db.session.commit()
 
-_is_flask_db_command = len(sys.argv) > 1 and sys.argv[1] == "db"
+_is_flask_db_command = "db" in sys.argv[1:]
+
+
+def _upgrade_video_watch_schema():
+    """Atualiza registros de acompanhamento de vídeo já existentes."""
+    inspector = inspect(db.engine)
+    if "video_watch" not in inspector.get_table_names():
+        return
+
+    columns = {column["name"] for column in inspector.get_columns("video_watch")}
+    if "duration" not in columns:
+        db.session.execute(
+            text("ALTER TABLE video_watch ADD COLUMN duration FLOAT NOT NULL DEFAULT 0")
+        )
+    if "youtube_video_id" not in columns:
+        db.session.execute(
+            text("ALTER TABLE video_watch ADD COLUMN youtube_video_id VARCHAR(11) NULL")
+        )
+
+    # Associa as linhas antigas ao ID real do vídeo sem descartar o progresso.
+    db.session.execute(text(
+        "UPDATE video_watch SET youtube_video_id = "
+        "(SELECT physics_resource.youtube_video_id FROM physics_resource "
+        "WHERE physics_resource.id = video_watch.resource_id) "
+        "WHERE youtube_video_id IS NULL"
+    ))
+
+    # Dados antigos podem ter o mesmo vídeo cadastrado em mais de um material.
+    # Preserva o registro mais avançado e deixa os duplicados históricos sem chave.
+    db.session.execute(text(
+        "WITH ranked AS ("
+        " SELECT id, ROW_NUMBER() OVER ("
+        "  PARTITION BY student_id, youtube_video_id "
+        "  ORDER BY (completed_at IS NOT NULL) DESC, watched_seconds DESC, id ASC"
+        " ) AS rn FROM video_watch WHERE youtube_video_id IS NOT NULL"
+        ") UPDATE video_watch SET youtube_video_id = NULL "
+        "WHERE id IN (SELECT id FROM ranked WHERE rn > 1)"
+    ))
+    db.session.execute(text(
+        "CREATE UNIQUE INDEX IF NOT EXISTS uq_video_watch_student_youtube_video "
+        "ON video_watch (student_id, youtube_video_id)"
+    ))
+    db.session.commit()
+
+
+def _backfill_quiz_completions():
+    """Trata simulados já enviados como concluídos no novo fluxo de tentativa única."""
+    if "quiz_completion" not in inspect(db.engine).get_table_names():
+        return
+    db.session.execute(text(
+        "INSERT INTO quiz_completion (student_id, quiz_id, attempt_id, completed_at, points_awarded) "
+        "SELECT attempt.student_id, attempt.quiz_id, attempt.id, attempt.completed_at, 0 "
+        "FROM quiz_attempt AS attempt "
+        "WHERE attempt.completed_at IS NOT NULL "
+        "AND attempt.id = (SELECT MIN(previous.id) FROM quiz_attempt AS previous "
+        " WHERE previous.student_id = attempt.student_id "
+        " AND previous.quiz_id = attempt.quiz_id AND previous.completed_at IS NOT NULL) "
+        "AND NOT EXISTS (SELECT 1 FROM quiz_completion AS completion "
+        " WHERE completion.student_id = attempt.student_id AND completion.quiz_id = attempt.quiz_id)"
+    ))
+    db.session.commit()
+
 
 if not _is_flask_db_command:
     with app.app_context():
         db.create_all()
         _upgrade_physics_topic_schema()
         _upgrade_quiz_image_schema()
+        _upgrade_video_watch_schema()
+        _backfill_quiz_completions()
         RankingService.registrar_pontos_historicos()
         PhysicsService.seed_conteudo_inicial()

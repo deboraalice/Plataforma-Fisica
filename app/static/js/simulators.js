@@ -28,6 +28,23 @@
   }
   function clamp(value, min, max) { return Math.max(min, Math.min(max, value)); }
 
+  var GRAVITATIONAL_BODIES = {
+    terra: { radiusKm: 6378.1, massKg: 5.972e24, name: 'Terra', color: '#2563EB' },
+    lua: { radiusKm: 1737.4, massKg: 7.342e22, name: 'Lua', color: '#94A3B8' },
+    marte: { radiusKm: 3396.2, massKg: 6.417e23, name: 'Marte', color: '#EA580C' },
+    jupiter: { radiusKm: 71492, massKg: 1.898e27, name: 'Júpiter', color: '#D97706' }
+  };
+
+  function kinematics(v, time) {
+    var elapsed = Math.max(0, Math.min(time, v.t));
+    var stopTime = v.a < 0 && v.v0 > 0 ? v.v0 / -v.a : Infinity;
+    elapsed = Math.min(elapsed, stopTime);
+    return {
+      velocity: Math.max(0, v.v0 + v.a * elapsed),
+      distance: Math.max(0, v.v0 * elapsed + .5 * v.a * elapsed * elapsed)
+    };
+  }
+
   function palette() {
     var style = getComputedStyle(document.documentElement);
     return {
@@ -99,10 +116,11 @@
         ['t', 'Tempo observado', 1, 15, 6, 1, 's']
       ],
       calculate: function (v) {
-        var velocity = Math.max(0, v.v0 + v.a * v.t);
-        var distance = Math.max(0, v.v0 * v.t + .5 * v.a * v.t * v.t);
+        var motion = kinematics(v, v.t);
+        var velocity = motion.velocity;
+        var distance = motion.distance;
         return {
-          status: velocity > v.v0 ? 'O carro ganhou velocidade' : velocity < v.v0 ? 'O carro desacelerou' : 'Velocidade constante',
+          status: velocity > v.v0 ? 'O carro ganhou velocidade' : velocity < v.v0 ? (velocity === 0 ? 'O carro parou' : 'O carro desacelerou') : 'Velocidade constante',
           results: [['Velocidade final', fixed(velocity, 1) + ' m/s'], ['Em km/h', fixed(velocity * 3.6, 1) + ' km/h'], ['Distância', fixed(distance, 1) + ' m']],
           explanation: 'Com aceleração constante, a velocidade muda a mesma quantidade a cada segundo. A área acumulada sob essa mudança determina a distância percorrida.'
         };
@@ -113,14 +131,15 @@
         ctx.fillStyle = '#BBF7D0'; ctx.fillRect(0, roadY - 28, w, 28);
         ctx.fillStyle = '#334155'; ctx.fillRect(0, roadY, w, h - roadY);
         for (var x = -40; x < w; x += 90) line(ctx, x, roadY + 48, x + 48, roadY + 48, '#F8FAFC', 4);
-        var speed = clamp((v.v0 + Math.max(v.a, 0) * v.t) / 50, .08, 1);
-        var carX = 24 + p * (w - 110) * speed;
+        var totalDistance = kinematics(v, v.t).distance;
+        var progressDistance = kinematics(v, v.t * p).distance;
+        var carX = 24 + (totalDistance > 0 ? progressDistance / totalDistance : 0) * (w - 110);
         roundedRect(ctx, carX, roadY - 36, 76, 30, 8, c.primary);
         roundedRect(ctx, carX + 14, roadY - 52, 43, 21, 8, c.cyan);
         [carX + 17, carX + 60].forEach(function (cx) {
           ctx.beginPath(); ctx.arc(cx, roadY - 4, 9, 0, Math.PI * 2); ctx.fillStyle = '#0F172A'; ctx.fill();
         });
-        label(ctx, fixed(v.v0 + v.a * v.t, 1) + ' m/s', carX + 38, roadY - 65, c.text, 'center');
+        label(ctx, fixed(kinematics(v, v.t * p).velocity, 1) + ' m/s', carX + 38, roadY - 65, c.text, 'center');
       }
 
       },
@@ -165,7 +184,7 @@
         ['currentHeight', 'Altura observada', 0, 40, 6, 1, 'm']
       ],
       calculate: function (v) {
-        var current = Math.min(v.currentHeight, v.height);
+        var current = clamp(v.currentHeight, 0, v.height);
         var total = v.mass * 9.8 * v.height;
         var potential = v.mass * 9.8 * current;
         var kinetic = Math.max(0, total - potential);
@@ -180,7 +199,8 @@
         var base = h * .82, top = h * .17;
         ctx.beginPath(); ctx.moveTo(20, top); ctx.bezierCurveTo(w * .3, top, w * .35, base, w * .58, base); ctx.bezierCurveTo(w * .76, base, w * .72, h * .48, w - 20, h * .48);
         ctx.strokeStyle = c.text; ctx.lineWidth = 5; ctx.stroke();
-        var t = p, x = 20 + t * (w * .56), y = top + (base - top) * (t * t * (3 - 2 * t));
+        var descent = v.height > 0 ? 1 - clamp(v.currentHeight, 0, v.height) / v.height : 0;
+        var t = descent, x = 20 + t * (w * .56), y = top + (base - top) * (t * t * (3 - 2 * t));
         roundedRect(ctx, x - 18, y - 18, 38, 20, 5, c.primary);
         [x - 10, x + 12].forEach(function (cx) { ctx.beginPath(); ctx.arc(cx, y + 4, 5, 0, 7); ctx.fillStyle = c.text; ctx.fill(); });
         arrow(ctx, w - 54, base, w - 54, top, c.cyan, 'h');
@@ -201,7 +221,7 @@
         var energy = v.mass * 4200 * delta;
         var seconds = energy / v.power;
         return {
-          status: delta ? 'A água está recebendo calor' : 'Não há variação de temperatura',
+          status: v.final < v.initial ? 'A temperatura desejada é menor; o aquecedor não resfria a água' : delta ? 'A água está recebendo calor' : 'Não há variação de temperatura',
           results: [['Variação térmica', fixed(delta, 0) + ' °C'], ['Energia necessária', fixed(energy / 1000, 1) + ' kJ'], ['Tempo ideal', fixed(seconds / 60, 1) + ' min']],
           explanation: 'Quanto maior a massa de água ou a variação de temperatura, mais energia é necessária. Um aquecedor mais potente entrega essa energia em menos tempo.'
         };
@@ -210,7 +230,7 @@
         var cx = w / 2, base = h * .78, potW = Math.min(230, w * .5);
         roundedRect(ctx, cx - potW / 2, base - 135, potW, 135, 16, '#64748B');
         ctx.fillStyle = '#38BDF8'; ctx.fillRect(cx - potW / 2 + 12, base - 95, potW - 24, 83);
-        var tempRatio = clamp((v.initial + (v.final - v.initial) * p) / 100, 0, 1);
+        var tempRatio = clamp((v.initial + Math.max(0, v.final - v.initial) * p) / 100, 0, 1);
         ctx.fillStyle = 'rgba(239,68,68,' + (.15 + tempRatio * .55) + ')'; ctx.fillRect(cx - potW / 2 + 12, base - 95, potW - 24, 83);
         for (var i = 0; i < 3; i++) {
           ctx.beginPath(); ctx.moveTo(cx - 55 + i * 55, base - 150); ctx.bezierCurveTo(cx - 75 + i * 55, base - 180, cx - 35 + i * 55, base - 200, cx - 55 + i * 55, base - 230);
@@ -258,13 +278,17 @@
       ],
       calculate: function (v) {
         var denominator = (1 / v.focal) - (1 / v.object);
-        var image = Math.abs(denominator) < .001 ? Infinity : 1 / denominator;
+        var image = Math.abs(denominator) < 1e-9 ? Infinity : 1 / denominator;
         var magnification = image === Infinity ? Infinity : -image / v.object;
         var type = image > 0 ? 'real e invertida' : 'virtual e direita';
         return {
           status: image === Infinity ? 'Raios emergem paralelos' : 'Imagem ' + type,
-          results: [['Posição da imagem', image === Infinity ? '∞' : fixed(Math.abs(image), 1) + ' cm'], ['Ampliação', magnification === Infinity ? '∞' : fixed(Math.abs(magnification), 2) + '×'], ['Orientação', image > 0 ? 'Invertida' : 'Direita']],
-          explanation: 'A lente convergente desvia os raios. Quando o objeto está além do foco, eles se cruzam e formam uma imagem real e invertida do outro lado.'
+          results: [['Posição da imagem', image === Infinity ? '∞' : fixed(Math.abs(image), 1) + ' cm'], ['Ampliação', magnification === Infinity ? '∞' : fixed(Math.abs(magnification), 2) + '×'], ['Orientação', image === Infinity ? 'Não definida' : image > 0 ? 'Invertida' : 'Direita']],
+          explanation: image === Infinity
+            ? 'Com o objeto no foco, os raios emergem paralelos e a imagem fica no infinito.'
+            : image > 0
+              ? 'Como o objeto está além do foco, os raios se cruzam e formam uma imagem real e invertida do outro lado da lente.'
+              : 'Como o objeto está entre a lente e o foco, os raios emergem divergentes e suas extensões formam uma imagem virtual e direita.'
         };
       },
       draw: function (ctx, w, h, v, p, c) {
@@ -272,13 +296,18 @@
         line(ctx, 18, axis, w - 18, axis, c.border, 2);
         ctx.beginPath(); ctx.ellipse(lensX, axis, 13, h * .38, 0, 0, Math.PI * 2); ctx.fillStyle = 'rgba(6,182,212,.25)'; ctx.fill(); ctx.strokeStyle = c.cyan; ctx.lineWidth = 3; ctx.stroke();
         arrow(ctx, objectX, axis, objectX, axis - v.height * scale, c.primary, 'objeto');
-        var denominator = 1 / v.focal - 1 / v.object, image = Math.abs(denominator) < .001 ? 999 : 1 / denominator;
-        var imageX = clamp(lensX + image * scale, lensX + 20, w - 25);
-        var imageH = clamp(v.height * Math.abs(image / v.object) * scale, 8, h * .35);
+        var denominator = 1 / v.focal - 1 / v.object;
         line(ctx, objectX, axis - v.height * scale, lensX, axis - v.height * scale, c.warning, 2);
-        line(ctx, lensX, axis - v.height * scale, imageX, axis + imageH, c.warning, 2);
-        line(ctx, objectX, axis - v.height * scale, imageX, axis + imageH, c.success, 2);
-        if (image > 0) arrow(ctx, imageX, axis, imageX, axis + imageH, c.success, 'imagem');
+        if (Math.abs(denominator) < 1e-9) {
+          line(ctx, lensX, axis - v.height * scale, w - 18, axis - v.height * scale, c.success, 2);
+        } else {
+          var image = 1 / denominator;
+          var imageX = image > 0 ? clamp(lensX + image * scale, lensX + 20, w - 25) : clamp(lensX + image * scale, 25, lensX - 20);
+          var imageH = clamp(v.height * Math.abs(image / v.object) * scale, 8, h * .35);
+          line(ctx, lensX, axis - v.height * scale, imageX, axis + (image > 0 ? imageH : -imageH), c.warning, 2, image > 0 ? null : [5, 5]);
+          line(ctx, objectX, axis - v.height * scale, imageX, axis + (image > 0 ? imageH : -imageH), c.success, 2, image > 0 ? null : [5, 5]);
+          arrow(ctx, imageX, axis, imageX, axis + (image > 0 ? imageH : -imageH), c.success, 'imagem');
+        }
         [lensX - v.focal * scale, lensX + v.focal * scale].forEach(function (x) { ctx.beginPath(); ctx.arc(x, axis, 4, 0, 7); ctx.fillStyle = c.text; ctx.fill(); });
       }
     },
@@ -335,8 +364,12 @@
           ctx.beginPath(); ctx.ellipse(x, cy, 10, 49, 0, 0, Math.PI * 2); ctx.strokeStyle = '#F97316'; ctx.lineWidth = 3; ctx.stroke();
         }
         for (var j = 1; j <= 3; j++) {
-          ctx.beginPath(); ctx.ellipse(cx, cy, coilW / 2 + j * 28, 45 + j * 24, 0, 0, Math.PI * 2);
+          var fieldX = coilW / 2 + j * 28, fieldY = 45 + j * 24;
+          ctx.beginPath(); ctx.ellipse(cx, cy, fieldX, fieldY, 0, 0, Math.PI * 2);
           ctx.strokeStyle = 'rgba(79,70,229,' + strength * (1 - j * .18) + ')'; ctx.lineWidth = 3; ctx.stroke();
+          var angle = (p * Math.PI * 2 + j * Math.PI / 2) * (j % 2 ? 1 : -1);
+          ctx.beginPath(); ctx.arc(cx + Math.cos(angle) * fieldX, cy + Math.sin(angle) * fieldY, 4 + strength * 2, 0, Math.PI * 2);
+          ctx.fillStyle = c.cyan; ctx.fill();
         }
         label(ctx, 'N', cx - coilW / 2 + 18, cy + 5, '#FFFFFF', 'center'); label(ctx, 'S', cx + coilW / 2 - 18, cy + 5, '#FFFFFF', 'center');
       }
@@ -345,15 +378,25 @@
       formula: 'E = ρ·g·V',
       tip: 'A pressão aumenta com a profundidade, mesmo que o objeto tenha o mesmo tamanho.',
       fields: [
-        ['depth', 'Profundidade', 0, 10, 3, .5, 'm'],
+        ['depth', 'Profundidade inicial', 0, 10, 3, .5, 'm'],
         ['density', 'Densidade do líquido', 700, 1300, 1000, 50, 'kg/m³'],
         ['volume', 'Volume do objeto', .01, .2, .08, .01, 'm³'],
         ['mass', 'Massa do objeto', 5, 200, 60, 5, 'kg']
       ],
       calculate: function (v) {
-        var pressure = v.density * 9.8 * v.depth, buoyancy = v.density * 9.8 * v.volume, weight = v.mass * 9.8;
+        var pressure = v.density * 9.8 * v.depth;
+        var weight = v.mass * 9.8;
+        var fullBuoyancy = v.density * 9.8 * v.volume;
+        var floatingAtSurface = v.depth <= 0.01 && fullBuoyancy > weight + .01;
+        var buoyancy = floatingAtSurface ? weight : fullBuoyancy;
+        var balanced = Math.abs(buoyancy - weight) < .01;
+        var status = floatingAtSurface ? 'O objeto flutua na superfície'
+          : balanced ? 'O objeto fica em equilíbrio'
+            : fullBuoyancy > weight ? 'O objeto tende a subir'
+              : fullBuoyancy < weight ? (v.depth >= 9.99 ? 'O objeto repousa no fundo' : 'O objeto tende a afundar')
+              : 'O objeto fica em equilíbrio';
         return {
-          status: buoyancy > weight ? 'O objeto tende a subir' : buoyancy < weight ? 'O objeto tende a afundar' : 'O objeto fica em equilíbrio',
+          status: status,
           results: [['Pressão', fixed(pressure / 1000, 1) + ' kPa'], ['Empuxo', fixed(buoyancy, 0) + ' N'], ['Peso', fixed(weight, 0) + ' N']],
           explanation: 'O empuxo equivale ao peso do líquido deslocado. Se ele superar o peso do objeto, a força resultante aponta para cima e o objeto sobe.'
         };
@@ -364,13 +407,18 @@
         for (var x = 0; x < w; x += 35) {
           ctx.beginPath(); ctx.arc(x + p * 35, surface, 18, Math.PI, 0); ctx.strokeStyle = c.cyan; ctx.lineWidth = 2; ctx.stroke();
         }
-        var y = surface + clamp(v.depth / 10, 0, 1) * (h - surface - 70);
         var size = 35 + clamp(v.volume / .2, 0, 1) * 30;
+        var y = surface + clamp(v.depth / 10, 0, 1) * (h - surface - size / 2 - 10);
         roundedRect(ctx, w / 2 - size / 2, y - size / 2, size, size, 8, c.primary);
-        var buoyancy = v.density * v.volume, rises = buoyancy >= v.mass;
+        var fullBuoyancy = v.density * v.volume;
+        var floatingAtSurface = v.depth <= .01 && fullBuoyancy > v.mass + .001;
+        var buoyancy = floatingAtSurface ? v.mass : fullBuoyancy;
+        var rises = fullBuoyancy > v.mass + .001;
         arrow(ctx, w / 2, y - size / 2, w / 2, y - size / 2 - 65 * clamp(buoyancy / 150, .25, 1), c.success, 'E');
         arrow(ctx, w / 2, y + size / 2, w / 2, y + size / 2 + 65 * clamp(v.mass / 150, .25, 1), c.warning, 'P');
-        label(ctx, rises ? 'tende a subir' : 'tende a afundar', w / 2, h - 24, c.text, 'center');
+        var balanced = Math.abs(buoyancy - v.mass) < .001;
+        var state = floatingAtSurface ? 'flutuando' : balanced ? 'em equilíbrio' : rises ? 'subindo' : (v.depth >= 9.99 ? 'no fundo' : 'afundando');
+        label(ctx, 'Profundidade: ' + fixed(v.depth, 1) + ' m · ' + state, w / 2, h - 24, c.text, 'center');
       }
     },
     gravitacao: {
@@ -382,28 +430,28 @@
         ['altitude', 'Altitude', 0, 1000, 100, 25, 'km']
       ],
       calculate: function (v) {
-        var worlds = {
-          terra: [9.81, 6371, 5.972e24, 'Terra'],
-          lua: [1.62, 1737, 7.342e22, 'Lua'],
-          marte: [3.71, 3389, 6.417e23, 'Marte'],
-          jupiter: [24.79, 69911, 1.898e27, 'Júpiter']
-        };
-        var world = worlds[v.world], g = world[0] * Math.pow(world[1] / (world[1] + v.altitude), 2);
-        var orbital = Math.sqrt(6.674e-11 * world[2] / ((world[1] + v.altitude) * 1000));
+        var world = GRAVITATIONAL_BODIES[v.world], mu = 6.674e-11 * world.massKg;
+        var radius = (world.radiusKm + v.altitude) * 1000;
+        var g = mu / (radius * radius);
+        var orbital = Math.sqrt(mu / radius);
         return {
-          status: 'Explorando ' + world[3],
+          status: 'Explorando ' + world.name,
           results: [['Gravidade local', fixed(g, 2) + ' m/s²'], ['Seu peso', fixed(v.mass * g, 0) + ' N'], ['Velocidade orbital', fixed(orbital / 1000, 2) + ' km/s']],
           explanation: 'A gravidade diminui com a distância ao centro do astro. Sua massa permanece igual, mas o peso muda porque é o produto da massa pela gravidade local.'
         };
       },
       draw: function (ctx, w, h, v, p, c) {
-        var colors = { terra: '#2563EB', lua: '#94A3B8', marte: '#EA580C', jupiter: '#D97706' };
+        var world = GRAVITATIONAL_BODIES[v.world];
         var radius = Math.min(w, h) * .2, cx = w / 2, cy = h / 2, orbit = radius + 65 + v.altitude / 18;
         ctx.fillStyle = '#070B24'; ctx.fillRect(0, 0, w, h);
         for (var i = 0; i < 45; i++) { ctx.fillStyle = 'rgba(255,255,255,' + (.2 + (i % 4) * .18) + ')'; ctx.fillRect((i * 83) % w, (i * 47) % h, 2, 2); }
-        ctx.beginPath(); ctx.arc(cx, cy, radius, 0, Math.PI * 2); ctx.fillStyle = colors[v.world]; ctx.fill();
+        ctx.beginPath(); ctx.arc(cx, cy, radius, 0, Math.PI * 2); ctx.fillStyle = world.color; ctx.fill();
         ctx.beginPath(); ctx.arc(cx, cy, Math.min(orbit, Math.min(w, h) * .45), 0, Math.PI * 2); ctx.strokeStyle = 'rgba(255,255,255,.35)'; ctx.setLineDash([5, 6]); ctx.stroke(); ctx.setLineDash([]);
-        var angle = p * Math.PI * 2, r = Math.min(orbit, Math.min(w, h) * .45);
+        var orbitalRadius = (world.radiusKm + v.altitude) * 1000;
+        var earthRadius = GRAVITATIONAL_BODIES.terra.radiusKm * 1000;
+        var angularRate = Math.sqrt(6.674e-11 * world.massKg / Math.pow(orbitalRadius, 3));
+        var earthAngularRate = Math.sqrt(6.674e-11 * GRAVITATIONAL_BODIES.terra.massKg / Math.pow(earthRadius, 3));
+        var angle = p * Math.PI * 2 * angularRate / earthAngularRate, r = Math.min(orbit, Math.min(w, h) * .45);
         ctx.beginPath(); ctx.arc(cx + Math.cos(angle) * r, cy + Math.sin(angle) * r, 7, 0, Math.PI * 2); ctx.fillStyle = '#F8FAFC'; ctx.fill();
       }
     }
@@ -463,6 +511,18 @@ var config = configs[slug];
     return current;
   }
 
+  function syncEnergyHeightRange() {
+    if (slug !== 'energia-trabalho') return;
+    var height = fieldsHost.querySelector('[data-field="height"]');
+    var currentHeight = fieldsHost.querySelector('[data-field="currentHeight"]');
+    if (!height || !currentHeight) return;
+    currentHeight.max = height.value;
+    if (number(currentHeight.value) > number(height.value)) currentHeight.value = height.value;
+    updateRange(currentHeight);
+    var labels = currentHeight.parentElement.querySelectorAll('.simulator-range-labels span');
+    if (labels.length > 1) labels[1].textContent = height.value + ' m';
+  }
+
   function updateRange(input) {
     var progress = (number(input.value) - number(input.min)) / (number(input.max) - number(input.min)) * 100;
     input.style.setProperty('--range-progress', progress + '%');
@@ -492,10 +552,10 @@ var config = configs[slug];
     return { width: box.width, height: box.height };
   }
 
-  function draw(progress) {
+  function draw(progress, currentValues) {
     var size = resizeCanvas();
     context.clearRect(0, 0, size.width, size.height);
-    config.draw(context, size.width, size.height, values(), progress, palette());
+    config.draw(context, size.width, size.height, currentValues || values(), progress, palette());
   }
 
   function refresh(progress) {
@@ -513,22 +573,38 @@ var config = configs[slug];
   function animate(timestamp) {
     if (!animationStart) animationStart = timestamp;
     var elapsed = timestamp - animationStart;
-    var progress = (elapsed % 4000) / 4000;
-    draw(progress);
-    if (elapsed < 8000) animationId = requestAnimationFrame(animate);
+    var isEnergy = slug === 'energia-trabalho';
+    var isHydrostatics = slug === 'hidrostatica';
+    var hasTravelAnimation = isEnergy || isHydrostatics;
+    var isGravity = slug === 'gravitacao';
+    var progress = isGravity ? elapsed / 4000 : hasTravelAnimation ? clamp(elapsed / 4000, 0, 1) : (elapsed % 4000) / 4000;
+    var current = values();
+    if (isEnergy) {
+      current.currentHeight = current.height - (current.height - current.currentHeight) * progress;
+      renderResults(config.calculate(current));
+    } else if (isHydrostatics) {
+      var displacedMass = current.density * current.volume;
+      if (displacedMass > current.mass + .001) current.depth *= 1 - progress;
+      else if (displacedMass < current.mass - .001) current.depth += (10 - current.depth) * progress;
+      renderResults(config.calculate(current));
+    }
+    draw(progress, current);
+    if (elapsed < (hasTravelAnimation ? 4000 : 8000)) animationId = requestAnimationFrame(animate);
     else stopAnimation();
   }
   createFields();
+  syncEnergyHeightRange();
   formulaHost.textContent = config.formula;
   tipHost.textContent = config.tip;
   fieldsHost.querySelectorAll('input').forEach(updateRange);
   refresh(.15);
 
   fieldsHost.addEventListener('input', function (event) {
+    syncEnergyHeightRange();
     if (event.target.matches('input')) updateRange(event.target);
     refresh(.15);
   });
-  fieldsHost.addEventListener('change', function () { refresh(.15); });
+  fieldsHost.addEventListener('change', function () { syncEnergyHeightRange(); refresh(.15); });
   action.addEventListener('click', function () {
     if (animationId) cancelAnimationFrame(animationId);
     animationStart = 0;
@@ -542,6 +618,7 @@ var config = configs[slug];
       field.value = field.dataset.default;
       if (field.tagName === 'INPUT') updateRange(field);
     });
+    syncEnergyHeightRange();
     actionLabel.textContent = 'Simular';
     refresh(.15);
   });

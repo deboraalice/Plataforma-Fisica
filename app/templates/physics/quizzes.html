@@ -1,12 +1,12 @@
 {% extends "layouts/app_base.html" %}
-{% from "components/macros.html" import field %}
+{% from "components/macros.html" import field, icon %}
 
 {% block title %}Simulados - {{ topico.title }}{% endblock %}
 {% block page_title %}Simulados{% endblock %}
 
 {% block content %}
 <div class="animate-fadeIn" style="max-width:900px;margin:0 auto;">
-  <a class="dash-link" href="{{ url_for('gerenciar_conteudos') }}">Voltar aos conteúdos</a>
+  <a class="dash-link" href="{{ url_for('gerenciar_conteudos') }}">{{ icon('chevron-left', 14) }} Voltar aos conteúdos</a>
   <section class="card" style="padding:24px;margin:14px 0 24px;">
     <h2 class="page-title">Criar simulado · {{ topico.title }}</h2>
     <p class="page-sub">Depois de criar, adicione questões de múltipla escolha com quatro alternativas e marque a correta.</p>

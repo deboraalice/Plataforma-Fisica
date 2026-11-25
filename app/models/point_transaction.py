@@ -23,6 +23,7 @@ class PointTransaction(db.Model):
     GOAL_COMPLETE = "goal_complete"  # metas antigas (ref_id = Goal.id)
     GOAL_TIER = "goal_tier"          # metas globais (ref_id = GoalClaim.id)
     TOPIC_COMPLETE = "topic_complete"
+    VIDEO_COMPLETE = "video_complete"
 
     id = db.Column(db.Integer, primary_key=True)
     amount = db.Column(db.Integer, nullable=False)

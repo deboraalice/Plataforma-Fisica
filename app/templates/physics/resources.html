@@ -6,7 +6,7 @@
 
 {% block content %}
 <div class="animate-fadeIn" style="max-width:1000px;margin:0 auto;">
-  <a class="dash-link" href="{{ url_for('gerenciar_conteudos') }}">Voltar aos conteúdos</a>
+  <a class="dash-link" href="{{ url_for('gerenciar_conteudos') }}">{{ icon('chevron-left', 14) }} Voltar aos conteúdos</a>
   <section class="card" style="padding:24px;margin:14px 0 24px;">
     <h2 class="page-title">{{ topico.emoji or '⚛️' }} {{ topico.title }}</h2>
     <p class="page-sub">Cole um link do YouTube para exibi-lo em um player dentro do tópico de Física. Outros links aparecem como material complementar.</p>

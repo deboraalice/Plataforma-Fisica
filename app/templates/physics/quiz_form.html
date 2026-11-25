@@ -1,12 +1,12 @@
 {% extends "layouts/app_base.html" %}
-{% from "components/macros.html" import field %}
+{% from "components/macros.html" import field, icon %}
 
 {% block title %}Editar simulado - FísicaFlow{% endblock %}
 {% block page_title %}Editar simulado{% endblock %}
 
 {% block content %}
 <div class="animate-fadeIn" style="max-width:1000px;margin:0 auto;">
-  <a class="dash-link" href="{{ url_for('gerenciar_simulados_fisica', topic_id=simulado.topic_id) }}">Voltar aos simulados de {{ simulado.topic.title }}</a>
+  <a class="dash-link" href="{{ url_for('gerenciar_simulados_fisica', topic_id=simulado.topic_id) }}">{{ icon('chevron-left', 14) }} Voltar aos simulados de {{ simulado.topic.title }}</a>
   <section class="card" style="padding:24px;margin:14px 0 24px;">
     <h2 class="page-title">{{ simulado.title }}</h2>
     <form method="POST" class="form" novalidate>

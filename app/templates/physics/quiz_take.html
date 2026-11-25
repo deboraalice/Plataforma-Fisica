@@ -18,8 +18,8 @@
     <section class="card quiz-result-summary">
       <span class="quiz-result-kicker">Simulado concluído</span>
       <h3>{{ resultado.correct_count }} de {{ resultado.question_count }} corretas</h3>
-      <p class="page-sub">Você recebeu {{ resultado.points_awarded }} ponto(s) nesta tentativa.</p>
-      <a class="btn btn-primary" href="{{ url_for('topico_fisica', slug=simulado.topic.slug) }}">Voltar ao tópico</a>
+      <p class="page-sub">Você recebeu {{ resultado.points_awarded }} ponto(s) neste simulado.</p>
+      <a class="btn btn-primary" href="{{ url_for('topico_fisica', slug=simulado.topic.slug) }}">{{ icon('chevron-left', 14) }} Voltar ao tópico</a>
     </section>
     <div class="quiz-review-list">
       {% for item in detalhes_respostas %}
