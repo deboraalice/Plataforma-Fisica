@@ -69,6 +69,32 @@ def _upgrade_physics_topic_schema():
     db.session.commit()
 
 
+def _upgrade_physics_resource_file_schema():
+    """Adiciona campos opcionais para arquivos anexados aos materiais."""
+    inspector = inspect(db.engine)
+    if "physics_resource" not in inspector.get_table_names():
+        return
+
+    columns = {
+        column["name"]
+        for column in inspector.get_columns("physics_resource")
+    }
+    dialect = db.engine.dialect.name
+    binary_type = "BYTEA" if dialect == "postgresql" else (
+        "LONGBLOB" if dialect == "mysql" else "BLOB"
+    )
+    additions = {
+        "file_data": f"{binary_type} NULL",
+        "file_mime_type": "VARCHAR(100) NULL",
+    }
+    for name, definition in additions.items():
+        if name not in columns:
+            db.session.execute(
+                text(f"ALTER TABLE physics_resource ADD COLUMN {name} {definition}")
+            )
+    db.session.commit()
+
+
 def _upgrade_quiz_image_schema():
     """Adiciona campos de imagem a questões e alternativas já existentes."""
     inspector = inspect(db.engine)
@@ -149,6 +175,7 @@ if not _is_flask_db_command:
     with app.app_context():
         db.create_all()
         _upgrade_physics_topic_schema()
+        _upgrade_physics_resource_file_schema()
         _upgrade_quiz_image_schema()
         _upgrade_video_watch_schema()
         _backfill_quiz_completions()

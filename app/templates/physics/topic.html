@@ -52,7 +52,16 @@
       <article class="physics-resource-card">
         <h4>{{ resource.title }}</h4>
         {% if resource.description %}<p>{{ resource.description }}</p>{% endif %}
-        {% if resource.youtube_video_id %}
+        {% if resource.file_mime_type %}
+          {% set arquivo_url = url_for('arquivo_material_fisica', resource_id=resource.id) %}
+          {% if resource.file_mime_type.startswith('image/') %}
+            <a class="physics-resource-image-link" href="{{ arquivo_url }}" target="_blank" rel="noopener noreferrer">
+              <img class="physics-resource-image" src="{{ arquivo_url }}" alt="{{ resource.description or resource.title }}" loading="lazy">
+            </a>
+          {% else %}
+            <a href="{{ arquivo_url }}" target="_blank" rel="noopener noreferrer">Abrir PDF {{ icon('chevron-right', 14) }}</a>
+          {% endif %}
+        {% elif resource.youtube_video_id %}
           <div class="physics-video-frame">
             <iframe id="video-player-{{ resource.id }}" data-youtube-watch data-resource-id="{{ resource.id }}" src="{{ resource.youtube_embed_url }}?enablejsapi=1&origin={{ request.host_url.rstrip('/')|urlencode }}" title="{{ resource.title }}" loading="lazy" referrerpolicy="strict-origin-when-cross-origin" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
           </div>

@@ -121,6 +121,8 @@ class PhysicsResource(db.Model):
     description = db.Column(db.Text, nullable=True)
     url = db.Column(db.String(1024), nullable=False)
     youtube_video_id = db.Column(db.String(11), nullable=True)
+    file_data = db.Column(db.LargeBinary, nullable=True)
+    file_mime_type = db.Column(db.String(100), nullable=True)
     is_active = db.Column(db.Boolean, nullable=False, default=True)
     created_at = db.Column(db.DateTime, nullable=False, default=agora_utc)
     updated_at = db.Column(db.DateTime, nullable=False, default=agora_utc, onupdate=agora_utc)

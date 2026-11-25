@@ -9,12 +9,13 @@
   <a class="dash-link" href="{{ url_for('gerenciar_conteudos') }}">{{ icon('chevron-left', 14) }} Voltar aos conteúdos</a>
   <section class="card" style="padding:24px;margin:14px 0 24px;">
     <h2 class="page-title">{{ topico.emoji or '⚛️' }} {{ topico.title }}</h2>
-    <p class="page-sub">Cole um link do YouTube para exibi-lo em um player dentro do tópico de Física. Outros links aparecem como material complementar.</p>
-    <form method="POST" class="form" novalidate>
+    <p class="page-sub">Adicione um link ou envie um PDF ou imagem (PNG, JPG, GIF ou WEBP). Arquivos de até 3 MB ficam armazenados junto ao material.</p>
+    <form method="POST" enctype="multipart/form-data" class="form" novalidate>
       {{ formulario.hidden_tag() }}
       {{ field(formulario.title, 'clipboard-list', placeholder='Ex.: Aula sobre as leis de Newton') }}
       {{ field(formulario.description, 'info', placeholder='Descrição opcional para os alunos') }}
-      {{ field(formulario.url, 'link', placeholder='https://www.youtube.com/watch?v=...') }}
+      {{ field(formulario.url, 'link', placeholder='https://...') }}
+      {{ field(formulario.arquivo, 'clipboard-list', extra={'accept': '.pdf,.png,.jpg,.jpeg,.gif,.webp,application/pdf,image/png,image/jpeg,image/gif,image/webp'}) }}
       <div style="display:flex;gap:8px;flex-wrap:wrap;">
         <button class="btn btn-primary" type="submit">{{ 'Salvar alterações' if material_em_edicao else 'Publicar para os alunos' }}</button>
         {% if material_em_edicao %}<a class="btn btn-soft" href="{{ url_for('gerenciar_materiais_fisica', topic_id=topico.id) }}">Cancelar</a>{% endif %}
@@ -28,9 +29,12 @@
       <article class="card" style="padding:18px;opacity:{{ '0.6' if not material.is_active else '1' }};">
         <div style="display:flex;justify-content:space-between;gap:14px;flex-wrap:wrap;">
           <div>
-            <span class="physics-resource-kind">{% if material.youtube_video_id %}Videoaula{% else %}Link complementar{% endif %}{% if not material.is_active %} · Arquivado{% endif %}</span>
+            <span class="physics-resource-kind">{% if material.file_mime_type == 'application/pdf' %}PDF{% elif material.file_mime_type and material.file_mime_type.startswith('image/') %}Imagem{% elif material.youtube_video_id %}Videoaula{% else %}Link complementar{% endif %}{% if not material.is_active %} · Arquivado{% endif %}</span>
             <h4 style="margin:8px 0 4px;">{{ material.title }}</h4>
             {% if material.description %}<p class="page-sub">{{ material.description }}</p>{% endif %}
+            {% if material.file_mime_type %}
+              <a href="{{ url_for('arquivo_material_fisica', resource_id=material.id) }}" target="_blank" rel="noopener noreferrer">Visualizar arquivo</a>
+            {% endif %}
           </div>
           <div style="display:flex;gap:8px;align-items:flex-start;">
             <a class="btn btn-soft" href="{{ url_for('gerenciar_materiais_fisica', topic_id=topico.id, resource_id=material.id) }}">Editar</a>

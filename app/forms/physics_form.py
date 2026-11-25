@@ -35,9 +35,10 @@ class PhysicsResourceForm(FlaskForm):
     )
     description = TextAreaField("Descrição (opcional)", validators=[Length(max=1000)])
     url = StringField(
-        "Link da videoaula ou material",
-        validators=[DataRequired(message="Informe um link."), Length(max=1024)],
+        "Link da videoaula ou material (opcional se enviar arquivo)",
+        validators=[Optional(), Length(max=1024)],
     )
+    arquivo = FileField("Arquivo PDF ou imagem (opcional se informar link)")
     submit = SubmitField("Salvar material")
 
 

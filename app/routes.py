@@ -1,4 +1,5 @@
 from datetime import date, datetime
+from io import BytesIO
 from math import ceil
 from pathlib import Path
 from secrets import token_hex, token_urlsafe
@@ -10,6 +11,7 @@ from flask import (
     redirect,
     render_template,
     request,
+    send_file,
     send_from_directory,
     session,
     url_for,
@@ -395,6 +397,39 @@ def imagem_questao(filename):
     return response
 
 
+@app.route("/fisica/materiais/<int:resource_id>/arquivo")
+@login_required
+def arquivo_material_fisica(resource_id):
+    material = db.session.get(PhysicsResource, resource_id)
+    if (
+        material is None
+        or not material.is_active
+        or not material.file_mime_type
+        or material.file_data is None
+    ):
+        abort(404)
+
+    extensao = {
+        "application/pdf": "pdf",
+        "image/png": "png",
+        "image/jpeg": "jpg",
+        "image/gif": "gif",
+        "image/webp": "webp",
+    }.get(material.file_mime_type)
+    if extensao is None:
+        abort(404)
+
+    response = send_file(
+        BytesIO(material.file_data),
+        mimetype=material.file_mime_type,
+        as_attachment=False,
+        download_name=f"material-{material.id}.{extensao}",
+    )
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["Cache-Control"] = "private, max-age=3600"
+    return response
+
+
 @app.route(
     "/professor/conteudos/<int:topic_id>/materiais",
     defaults={"resource_id": None},
@@ -425,10 +460,14 @@ def gerenciar_materiais_fisica(topic_id, resource_id):
                 title=formulario.title.data,
                 description=formulario.description.data,
                 url=formulario.url.data,
+                arquivo=formulario.arquivo.data,
                 resource=material,
             )
         except ResourceError as erro:
-            formulario.url.errors.append(str(erro))
+            if formulario.arquivo.data and formulario.arquivo.data.filename:
+                formulario.arquivo.errors.append(str(erro))
+            else:
+                formulario.url.errors.append(str(erro))
         else:
             flash("Material publicado para todos os alunos.", "success")
             return redirect(

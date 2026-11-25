@@ -1576,6 +1576,8 @@ textarea#prompt:not(:placeholder-shown) { padding-top: 12px; text-align: left; }
 .physics-resource-card .physics-resource-fallback { display: inline-block; margin-top: 8px; color: var(--muted); font-size: 11px; font-weight: 500; }
 .physics-resource-byline { color: var(--muted); font-size: 11px; }
 .physics-resource-kind { display: inline-flex; padding: 4px 8px; border-radius: 999px; background: var(--primary-soft); color: var(--primary); font-size: 11px; font-weight: 600; }
+.physics-resource-image-link { display: inline-block; max-width: 100%; }
+.physics-resource-card .physics-resource-image { display: block; max-width: min(100%, 720px); max-height: 560px; border-radius: var(--radius-md); object-fit: contain; }
 .physics-video-frame { position: relative; width: 100%; aspect-ratio: 16 / 9; overflow: hidden; border-radius: var(--radius-md); background: #0F172A; }
 .physics-video-frame iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; }
 .ranking-page { max-width: 1120px; margin: 0 auto; }
